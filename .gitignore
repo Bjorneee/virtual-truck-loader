@@ -99,7 +99,7 @@ unity/Assets/Unity.VisualScripting.Generated/VisualScripting.Core/Property Provi
 unity/Assets/Unity.VisualScripting.Generated/VisualScripting.Core/Property Providers.meta
 
 # Auto-generated scenes by play mode tests
-unity/Assets/[Ii]nit[Tt]est[Ss]cene*.unity*
+unity/Assets/InitTestScene*.unity*
 
 # Python
 __pycache__/
