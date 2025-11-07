@@ -1,0 +1,19 @@
+# --- Core API ---
+flask           # Serves HTTP API to Unity
+flask-cors      # Handles corss-origin issues (web UI)
+
+# --- Data Models ---
+pydantic>=2     # Data validation & schemas for request/response
+
+# --- Math / Packing ---
+numpy           # Core math / geometry operations
+
+# --- Tentative ---
+pandas          # Data manipulation for tabular data
+scipy           # Optimization helpers
+ortools         # Advanced bin packing / optimization & constraint solving
+
+# --- Development ---
+pytest
+black
+ruff
