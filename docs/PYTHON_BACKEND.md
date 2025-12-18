@@ -10,13 +10,19 @@ The Python backend provides:
 ## Folder Structure
 python/
 ├─ api/
-│ └─ main.py
+│ ├─ main.py
+│ ├─ config.py
+│ └─ deps.py
 ├─ vtl_core/
+│ ├─ __init__.py
 │ ├─ schemas.py
 │ ├─ packing/
+│ │ ├─ constraints.py
 │ │ └─ heuristics.py
 │ └─ utils.py
 ├─ tests/
+│ ├─ test_api.py
+│ └─ test_packing.py
 └─ requirements.txt
 
 ## API Entrypoint
