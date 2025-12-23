@@ -1,7 +1,7 @@
 # Item, Container, Placement, Solution (Internal Dataclasses)
 
 from dataclasses import dataclass
-from utils import swap
+from typing import Literal
 
 @dataclass
 class Item:
@@ -11,13 +11,15 @@ class Item:
     name: str
     sku: int
     tags: list[str]
-    stackable: bool = False
 
     # Dimensions
     width: float
     depth: float
     height: float
     weight: float
+
+    # Config
+    stackable: bool = False
 
     # Returns the volume occupied by Item
     def volume(self) -> float:
@@ -28,17 +30,19 @@ class Item:
         return self.width * self.depth
     
     # Rotates Item 90 degrees along any one axis
-    def rotate(self, axis: {'x', 'y', 'z'}):
+    def rotate(self, axis: Literal['x', 'y', 'z']):
         match axis:
             case 'x':
-                swap(self.depth, self.height)
+                self.depth, self.height = self.height, self.depth
                 return
             case 'y':
-                swap(self.depth, self.width)
+                self.depth, self.width = self.width, self.depth
                 return
             case 'z':
-                swap(self.height, self.width)
+                self.height, self.width = self.width, self.height
                 return
+            case _:
+                raise ValueError(f"Invalid axis: {axis!r}")
 
 @dataclass(frozen=True)
 class Container:
