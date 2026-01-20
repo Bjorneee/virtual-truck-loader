@@ -1,7 +1,11 @@
 # API Reference
 
+## How to Run
+cd VTL
+uvicorn python.api.main:app
+
 ## Base URL
-http://127.0.0.1:5000
+http://127.0.0.1:8000/
 
 ## Endpoints
 
@@ -12,10 +16,10 @@ Checks backend status.
 
 #### Response
 ```json
-{ "ok": true }
+{ "status": "ok" }
 ```
 
-### `POST /load`
+### `POST /pack`
 Runs packing algorithm.
 
 #### Request Body
@@ -23,19 +27,19 @@ Runs packing algorithm.
 {
   "truck": {
     "id": "T1",
-    "inner_w": 2.4,
-    "inner_h": 2.6,
-    "inner_d": 12.0
+    "width": 2.4,
+    "height": 2.6,
+    "depth": 12.0
   },
   "boxes": [
     {
       "id": "bx1",
-      "w": 1.2,
-      "h": 0.8,
-      "d": 0.6,
+      "width": 1.2,
+      "height": 0.8,
+      "depth": 0.6,
       "weight": 12.0,
       "rotatable": true,
-      "priority": 0
+      "priority": 0.0
     }
   ]
 }
@@ -44,19 +48,22 @@ Runs packing algorithm.
 #### Response Body
 ```json
 {
-  "placements": [
+  "placed": [
     {
       "id": "bx1",
       "x": 0.0,
       "y": 0.0,
       "z": 0.0,
-      "rw": 1.2,
-      "rh": 0.8,
-      "rd": 0.6,
-      "rotation": "whd"
+      "rotation": 1
+    }
+  ],
+  "unplaced": [
+    {
+      "id": "bx2"
     }
   ],
   "utilization": 0.27,
+  "runtime_ms": 7500,
   "notes": "first_fit_layered"
 }
 ```
@@ -69,8 +76,8 @@ Runs packing algorithm.
 ```
 
 ## Data Models Overview
-- TruckIn
-- BoxIn
-- LoadRequest
-- Placement
-- LoadResponse
+- Box
+- Truck
+- PackingRequest
+- PlacedBox
+- PackingResponse
