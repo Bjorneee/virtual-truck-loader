@@ -29,15 +29,15 @@ python/
 `api/main.py`
 - Exposes endpoints:
   - `GET /health`
-  - `POST /load`
+  - `POST /pack`
 
 ## Data Models
-(`vtl_core/schemas.py`)
-- `BoxIn`
-- `TruckIn`
-- `LoadRequest`
-- `Placement`
-- `LoadResponse`
+(`api/schemas.py`)
+- `Box`
+- `Truck`
+- `PackingRequest`
+- `PlacedBox`
+- `PackingResponse`
 
 ## Packing Logic
 (`vtl_core/packing/heuristics.py`)
