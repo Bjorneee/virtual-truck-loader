@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException
-from .schemas import PackingRequest, PackingResponse
+from python.vtl_core.schemas import PackingRequest, PackingResponse
 from python.services.packing_services import run_packing
 
 router = APIRouter()

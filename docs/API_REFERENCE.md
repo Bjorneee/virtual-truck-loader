@@ -2,7 +2,12 @@
 
 ## How to Run
 cd VTL
-uvicorn python.api.main:app
+uvicorn python.api.main:app --reload
+
+## Testing
+
+### Powershell
+curl.exe -X POST -H "Content-Type: application/json" -d "@python/tests/test_load.json" http://127.0.0.1:8000/pack
 
 ## Base URL
 http://127.0.0.1:8000/

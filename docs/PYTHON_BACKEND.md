@@ -11,18 +11,30 @@ The Python backend provides:
 python/
 ├─ api/
 │ ├─ main.py
+│ ├─ routes.py
+│ ├─ logging.py
 │ ├─ config.py
 │ └─ deps.py
+├─ services/
+│ └─ packing_services.py
 ├─ vtl_core/
 │ ├─ __init__.py
 │ ├─ schemas.py
+│ ├─ domain/
+│ │ ├─ errors.py
+│ │ └─ models.py
+│ ├─ optimization/
 │ ├─ packing/
 │ │ ├─ constraints.py
-│ │ └─ heuristics.py
+│ │ ├─ heuristics.py
+│ │ ├─ postprocess.py
+│ │ └─ scoring.py
 │ └─ utils.py
 ├─ tests/
-│ ├─ test_api.py
+│ ├─ test_load.json
+│ ├─ test_optimization.py
 │ └─ test_packing.py
+├─ __init__.py
 └─ requirements.txt
 
 ## API Entrypoint
