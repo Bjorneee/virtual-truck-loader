@@ -1,15 +1,22 @@
 import time
-from python.api.schemas import PackingRequest, PackingResponse, PlacedBox
+from python.vtl_core.schemas import PackingRequest, PackingResponse, PlacedBox
+
+placed = []
+unplaced = []
 
 def run_packing(req: PackingRequest) -> PackingResponse:
     start = time.time()
 
     # TODO: replace with real packing algorithm
-    placed = []
-    unplaced = []
-
     for box in req.boxes:
-        unplaced.append(box.id)
+        placed.append(PlacedBox(
+            id=box.id, 
+            x=0.0, 
+            y=0.0, 
+            z=0.0, 
+            rotation=1
+            )
+        )
 
     runtime_ms = (time.time() - start) * 1000
 
@@ -18,4 +25,5 @@ def run_packing(req: PackingRequest) -> PackingResponse:
         unplaced=unplaced,
         utilization=0.0,
         runtime_ms=runtime_ms,
+        notes=["None."]
     )
