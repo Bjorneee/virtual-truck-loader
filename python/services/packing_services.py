@@ -29,17 +29,20 @@ def run_packing(req: PackingRequest) -> PackingResponse:
             priority=box.priority
         ))
 
-    placed = []
-    for box in req.boxes:
-        placed.append(PlacedBox(
-            id=box.id, 
-            x=0.0, 
-            y=0.0, 
-            z=0.0, 
-            rotation=1
-            )
-        )
+    # Sort by descending height
+    unplaced.sort(key=lambda box: box.height, reverse=True)
+    print(unplaced) # Debug
 
+    placed = []
+    for box in unplaced:
+        placed.append(PlacedBox(
+            id=box.id,
+            x=0.0,
+            y=0.0,
+            z=0.0,
+            rotation=0
+        ))
+        
     runtime_ms = (time.time() - start) * 1000
 
     return PackingResponse(

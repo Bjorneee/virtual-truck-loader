@@ -29,8 +29,8 @@ class PlacedBox(BaseModel):
     rotation: int  # e.g. 0–5 for orthogonal rotations
 
 class PackingResponse(BaseModel):
-    placed: List[PlacedBox]
-    unplaced: List[str]
+    placed: Optional[List[PlacedBox]]
+    unplaced: Optional[List[str]]
     utilization: float
     runtime_ms: float
     notes: List[str]
