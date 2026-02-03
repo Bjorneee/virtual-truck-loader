@@ -4,7 +4,7 @@ from dataclasses import dataclass
 from typing import Literal, List, Optional
 
 @dataclass
-class Box:
+class Box_t:
 
     # Identifiers
     id: str
@@ -45,7 +45,7 @@ class Box:
                 raise ValueError(f"Invalid axis: {axis!r}")
 
 @dataclass
-class PlacedBox:
+class PlacedBox_t:
 
     # Identifiers
     id: str
@@ -57,7 +57,7 @@ class PlacedBox:
     rotation: int = 0
 
 @dataclass(frozen=True)
-class Truck:
+class Truck_t:
 
     # Identifiers
     id: str

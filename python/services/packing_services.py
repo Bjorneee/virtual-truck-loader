@@ -1,5 +1,5 @@
 import time
-from python.vtl_core.schemas import PackingRequest, PackingResponse, PlacedBox
+from python.api.schemas import PackingRequest, PackingResponse, PlacedBox, Box
 from python.vtl_core.domain import models
 
 def run_packing(req: PackingRequest) -> PackingResponse:
@@ -8,7 +8,7 @@ def run_packing(req: PackingRequest) -> PackingResponse:
     # TODO: replace with real packing algorithm
 
     # Instantiate truck object
-    truck = models.Truck(
+    truck = models.Truck_t(
         id=req.truck.id,
         width=req.truck.width,
         height=req.truck.height,
@@ -19,7 +19,7 @@ def run_packing(req: PackingRequest) -> PackingResponse:
     # Instantiate all boxes into unplaced list
     unplaced = []
     for box in req.boxes:
-        unplaced.append(models.Box(
+        internal = models.Box_t(
             id=box.id,
             width=box.width,
             height=box.height,
@@ -27,11 +27,11 @@ def run_packing(req: PackingRequest) -> PackingResponse:
             weight=box.weight,
             rotatable=box.rotatable,
             priority=box.priority
-        ))
+        )
+        unplaced.append(Box.model_validate(internal, from_attributes=True))
 
     # Sort by descending height
     unplaced.sort(key=lambda box: box.height, reverse=True)
-    print(unplaced) # Debug
 
     placed = []
     for box in unplaced:

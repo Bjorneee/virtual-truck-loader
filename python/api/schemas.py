@@ -1,7 +1,9 @@
-from pydantic import BaseModel
+from pydantic import BaseModel, ConfigDict
 from typing import List, Optional
 
 class Box(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     width: float
     height: float
@@ -11,6 +13,8 @@ class Box(BaseModel):
     priority: Optional[float] = 0.0
 
 class Truck(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     width: float
     height: float
@@ -22,6 +26,8 @@ class PackingRequest(BaseModel):
     boxes: List[Box]
 
 class PlacedBox(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
     id: str
     x: float
     y: float
@@ -30,7 +36,7 @@ class PlacedBox(BaseModel):
 
 class PackingResponse(BaseModel):
     placed: Optional[List[PlacedBox]]
-    unplaced: Optional[List[str]]
+    unplaced: Optional[List[Box]]
     utilization: float
     runtime_ms: float
     notes: List[str]

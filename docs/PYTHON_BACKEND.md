@@ -14,12 +14,12 @@ python/
 │ ├─ routes.py  
 │ ├─ logging.py  
 │ ├─ config.py  
+│ ├─ schemas.py  
 │ └─ deps.py    
 ├─ services/  
 │ └─ packing_services.py  
 ├─ vtl_core/  
 │ ├─ __init__.py  
-│ ├─ schemas.py  
 │ ├─ domain/  
 │ │ ├─ errors.py  
 │ │ └─ models.py  
