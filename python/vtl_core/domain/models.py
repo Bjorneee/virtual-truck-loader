@@ -16,7 +16,6 @@ class Box_t:
     weight: float
 
     # Config
-    rotatable: bool = False
     priority: Optional[float] = None
 
     # Methods

@@ -25,7 +25,6 @@ def run_packing(req: PackingRequest) -> PackingResponse:
             height=box.height,
             depth=box.depth,
             weight=box.weight,
-            rotatable=box.rotatable,
             priority=box.priority
         )
         unplaced.append(Box.model_validate(internal, from_attributes=True))
