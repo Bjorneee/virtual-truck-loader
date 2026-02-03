@@ -14,6 +14,24 @@
       "weight": 12.0,
       "rotatable": true,
       "priority": 0.0
+    },
+    {
+      "id": "bx2",
+      "width": 1.0,
+      "height": 1.5,
+      "depth": 1.5,
+      "weight": 24.0,
+      "rotatable": true,
+      "priority": 0.0
+    },
+    {
+      "id": "bx3",
+      "width": 0.5,
+      "height": 1.0,
+      "depth": 0.4,
+      "weight": 10.0,
+      "rotatable": true,
+      "priority": 0.0
     }
   ]
 }

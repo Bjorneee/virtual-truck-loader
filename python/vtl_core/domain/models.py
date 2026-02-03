@@ -1,25 +1,25 @@
 # Item, Container, Placement, Solution (Internal Dataclasses)
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, List, Optional
 
 @dataclass
-class Item:
+class Box_t:
 
     # Identifiers
     id: str
-    name: str
-    sku: int
-    tags: list[str]
-
+    
     # Dimensions
     width: float
-    depth: float
     height: float
+    depth: float
     weight: float
 
     # Config
-    stackable: bool = False
+    rotatable: bool = False
+    priority: Optional[float] = None
+
+    # Methods
 
     # Returns the volume occupied by Item
     def volume(self) -> float:
@@ -44,19 +44,35 @@ class Item:
             case _:
                 raise ValueError(f"Invalid axis: {axis!r}")
 
-@dataclass(frozen=True)
-class Container:
+@dataclass
+class PlacedBox_t:
 
     # Identifiers
     id: str
-    name: str
+
+    # Position
+    x: float
+    y: float
+    z: float
+    rotation: int = 0
+
+@dataclass(frozen=True)
+class Truck_t:
+
+    # Identifiers
+    id: str
 
     # Dimensions
     width: float
-    depth: float
     height: float
-    capacity: float
+    depth: float
+    max_weight: Optional[float] = None
+
+    # Methods
 
     # Returns inner volume of Container
     def volume(self) -> float:
         return self.width * self.depth * self.height
+    
+    def floor_area(self) -> float:
+        return self.width * self.depth
