@@ -1,8 +1,11 @@
 import time
 from typing import List, Tuple
+
 from python.api.schemas import PackingRequest, PackingResponse, PlacedBox, Box
 from python.vtl_core.domain import models
 from python.vtl_core.packing import heurisitics as packers
+
+from python.vtl_core.utils import get_utilization
 
 def run_packing(req: PackingRequest) -> PackingResponse:
     start = time.time()
@@ -45,12 +48,19 @@ def run_packing(req: PackingRequest) -> PackingResponse:
         boxes=unplaced
     )
         
+    utilization = 0.0 
+    """get_utilization(
+        truck=truck,
+        load=unplaced,
+        placed=packed_load[0]
+    )
+    """
     runtime_ms = (time.time() - start) * 1000
 
     return PackingResponse(
         placed=packed_load[0],
         unplaced=packed_load[1],
-        utilization=0.0,
+        utilization=utilization,
         runtime_ms=runtime_ms,
         notes=packed_load[2]
     )

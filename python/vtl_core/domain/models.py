@@ -21,14 +21,17 @@ class Box_t:
     # Methods
 
     # Returns the volume occupied by Item
+    @property
     def volume(self) -> float:
         return self.width * self.depth * self.height
     
     # Returns the floor area occupied by Item
+    @property
     def footprint(self) -> float:
         return self.width * self.depth
     
     # Rotates Item 90 degrees along any one axis
+    @property
     def rotate(self, axis: Literal['x', 'y', 'z']):
         match axis:
             case 'x':
@@ -70,8 +73,10 @@ class Truck_t:
     # Methods
 
     # Returns inner volume of Container
+    @property
     def volume(self) -> float:
         return self.width * self.depth * self.height
     
+    @property
     def floor_area(self) -> float:
         return self.width * self.depth
