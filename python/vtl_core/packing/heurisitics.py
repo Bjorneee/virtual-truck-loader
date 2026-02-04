@@ -7,8 +7,6 @@ Currently implemented heuristics:
 - Skyline Sort
 - MaxRect
 
-// For Testing
-- First Fit Decreasing (FFD)
 """
 
 from __future__ import annotations
@@ -25,17 +23,17 @@ First-Fit Guillotine (FFG)
 """
 
 # ----------------------------
-# Geometry helpers (top-right origin)
+# Geometry helpers (top-left origin)
 # ----------------------------
 # Coordinate system for each 2D layer (width x depth):
-#   origin (0,0) is TOP-RIGHT corner of the layer rectangle
-#   x increases LEFTWARD  (toward -X in conventional space)
-#   y increases DOWNWARD  (toward +Z or +Y depending on your Unity mapping)
+#   origin (0,0) is TOP-LEFT corner of the layer rectangle
+#   x increases RIGHTWARD
+#   y increases DOWNWARD
 #
-# A free-rectangle is represented by its top-right corner (xr, yt) and size (w,h),
+# A free-rectangle is represented by its top-left corner (x, y) and size (w,h),
 # where it spans:
-#   x in [xr - w, xr]
-#   y in [yt, yt + h]
+#   x in [x, x + w]
+#   y in [y, y + h]
 
 
 @dataclass(frozen=True)
@@ -45,32 +43,32 @@ class Rect2D:
 
 
 @dataclass
-class FreeRectTR:
-    xr: float  # x coordinate of top-right corner
-    yt: float  # y coordinate of top-right corner
+class FreeRectTL:
+    x: float  # x coordinate of top-left corner
+    y: float  # y coordinate of top-left corner
     w: float
     h: float
 
     @property
-    def xl(self) -> float:
-        return self.xr - self.w
+    def right(self) -> float:
+        return self.x + self.w
 
     @property
-    def yb(self) -> float:
-        return self.yt + self.h
+    def bottom(self) -> float:
+        return self.y + self.h
 
 
-def _contains(a: FreeRectTR, b: FreeRectTR) -> bool:
-    # a contains b (in TR coordinate space)
-    return (a.xl <= b.xl) and (a.xr >= b.xr) and (a.yt <= b.yt) and (a.yb >= b.yb)
+def _contains(a: FreeRectTL, b: FreeRectTL) -> bool:
+    # a contains b
+    return (a.x <= b.x) and (a.y <= b.y) and (a.right >= b.right) and (a.bottom >= b.bottom)
 
 
 def _almost_eq(a: float, b: float, eps: float = 1e-9) -> bool:
     return abs(a - b) <= eps
 
 
-def _prune_contained(free_rects: List[FreeRectTR]) -> List[FreeRectTR]:
-    out: List[FreeRectTR] = []
+def _prune_contained(free_rects: List[FreeRectTL]) -> List[FreeRectTL]:
+    out: List[FreeRectTL] = []
     for i, r in enumerate(free_rects):
         contained = False
         for j, s in enumerate(free_rects):
@@ -81,23 +79,21 @@ def _prune_contained(free_rects: List[FreeRectTR]) -> List[FreeRectTR]:
             out.append(r)
 
     # remove exact duplicates
-    uniq: List[FreeRectTR] = []
+    uniq: List[FreeRectTL] = []
     seen = set()
     for r in out:
-        key = (r.xr, r.yt, r.w, r.h)
+        key = (r.x, r.y, r.w, r.h)
         if key not in seen:
             seen.add(key)
             uniq.append(r)
     return uniq
 
 
-def _merge_guillotine(free_rects: List[FreeRectTR]) -> List[FreeRectTR]:
+def _merge_guillotine(free_rects: List[FreeRectTL]) -> List[FreeRectTL]:
     """
     Optional merge step:
-      - merge horizontally adjacent rects with same (yt,h) and touching in x
-      - merge vertically adjacent rects with same (xr,w) and touching in y
-
-    Because we use TR corners, adjacency checks are careful about edges.
+      - merge horizontally adjacent rects with same (y,h) and touching in x
+      - merge vertically adjacent rects with same (x,w) and touching in y
     """
     changed = True
     rects = free_rects[:]
@@ -106,34 +102,31 @@ def _merge_guillotine(free_rects: List[FreeRectTR]) -> List[FreeRectTR]:
         changed = False
         rects = _prune_contained(rects)
 
-        # Horizontal merges (side-by-side along x)
-        rects.sort(key=lambda r: (r.yt, r.h, r.xr, r.w))
+        # Horizontal merges: same y,h and touching on x edge
+        rects.sort(key=lambda r: (r.y, r.h, r.x, r.w))
         i = 0
         while i < len(rects):
             a = rects[i]
             merged = False
             for j in range(i + 1, len(rects)):
                 b = rects[j]
-                if not (_almost_eq(a.yt, b.yt) and _almost_eq(a.h, b.h)):
+                if not (_almost_eq(a.y, b.y) and _almost_eq(a.h, b.h)):
                     continue
 
-                # a and b share same vertical span; check if they touch along x
-                # If b is immediately to the left of a:
-                #   b.xr == a.xl
-                if _almost_eq(b.xr, a.xl):
-                    # merged rect top-right is a.xr, width = a.w + b.w
+                # b immediately to the right of a
+                if _almost_eq(a.right, b.x):
                     rects.pop(j)
                     rects.pop(i)
-                    rects.append(FreeRectTR(xr=a.xr, yt=a.yt, w=a.w + b.w, h=a.h))
+                    rects.append(FreeRectTL(x=a.x, y=a.y, w=a.w + b.w, h=a.h))
                     changed = True
                     merged = True
                     break
 
-                # If a is immediately to the left of b:
-                if _almost_eq(a.xr, b.xl):
+                # a immediately to the right of b
+                if _almost_eq(b.right, a.x):
                     rects.pop(j)
                     rects.pop(i)
-                    rects.append(FreeRectTR(xr=b.xr, yt=b.yt, w=a.w + b.w, h=a.h))
+                    rects.append(FreeRectTL(x=b.x, y=b.y, w=a.w + b.w, h=a.h))
                     changed = True
                     merged = True
                     break
@@ -144,33 +137,31 @@ def _merge_guillotine(free_rects: List[FreeRectTR]) -> List[FreeRectTR]:
         if changed:
             continue
 
-        # Vertical merges (stacked along y)
-        rects.sort(key=lambda r: (r.xr, r.w, r.yt, r.h))
+        # Vertical merges: same x,w and touching on y edge
+        rects.sort(key=lambda r: (r.x, r.w, r.y, r.h))
         i = 0
         while i < len(rects):
             a = rects[i]
             merged = False
             for j in range(i + 1, len(rects)):
                 b = rects[j]
-                if not (_almost_eq(a.xr, b.xr) and _almost_eq(a.w, b.w)):
+                if not (_almost_eq(a.x, b.x) and _almost_eq(a.w, b.w)):
                     continue
 
-                # They share same horizontal span; check if they touch along y
-                # If b is immediately below a:
-                #   b.yt == a.yb
-                if _almost_eq(b.yt, a.yb):
+                # b immediately below a
+                if _almost_eq(a.bottom, b.y):
                     rects.pop(j)
                     rects.pop(i)
-                    rects.append(FreeRectTR(xr=a.xr, yt=a.yt, w=a.w, h=a.h + b.h))
+                    rects.append(FreeRectTL(x=a.x, y=a.y, w=a.w, h=a.h + b.h))
                     changed = True
                     merged = True
                     break
 
-                # If a is immediately below b:
-                if _almost_eq(a.yt, b.yb):
+                # a immediately below b
+                if _almost_eq(b.bottom, a.y):
                     rects.pop(j)
                     rects.pop(i)
-                    rects.append(FreeRectTR(xr=b.xr, yt=b.yt, w=a.w, h=a.h + b.h))
+                    rects.append(FreeRectTL(x=b.x, y=b.y, w=a.w, h=a.h + b.h))
                     changed = True
                     merged = True
                     break
@@ -186,25 +177,31 @@ def _merge_guillotine(free_rects: List[FreeRectTR]) -> List[FreeRectTR]:
 # ----------------------------
 
 @dataclass
-class Placed2DTR:
-    xr: float  # placed rect's top-right corner x
-    yt: float  # placed rect's top-right corner y
+class Placed2DTL:
+    x: float  # placed rect's top-left corner x
+    y: float  # placed rect's top-left corner y
     w: float
     h: float
     rotated: bool
 
 
 def _split_guillotine(
-    fr: FreeRectTR,
+    fr: FreeRectTL,
     placed_w: float,
     placed_h: float,
     split_rule: str = "larger_leftover",
-) -> List[FreeRectTR]:
+) -> List[FreeRectTL]:
     """
-    Place at fr's top-right corner, then split remaining space into 2 free rects.
+    Place at fr's top-left corner (fr.x, fr.y), then split remaining space into 2 free rects.
+
     Two canonical cut orders:
-      A) vertical-first: left (fw-rw, fh) + bottom-right (rw, fh-rh)
-      B) horizontal-first: left-top (fw-rw, rh) + bottom (fw, fh-rh)
+      A) vertical-first:
+         - right:        (x+rw, y,     fw-rw, fh)
+         - bottom-left:  (x,    y+rh,  rw,    fh-rh)
+
+      B) horizontal-first:
+         - right-top:    (x+rw, y,     fw-rw, rh)
+         - bottom:       (x,    y+rh,  fw,    fh-rh)
 
     split_rule:
       - "larger_leftover": if leftover_w >= leftover_h do vertical-first else horizontal-first
@@ -224,40 +221,40 @@ def _split_guillotine(
     else:
         raise ValueError(f"Unknown split_rule: {split_rule}")
 
-    out: List[FreeRectTR] = []
+    out: List[FreeRectTL] = []
 
     if vertical_first:
-        # Left (full height)
+        # Right remainder (full height)
         if lw > 0:
-            out.append(FreeRectTR(xr=fr.xr - placed_w, yt=fr.yt, w=lw, h=fh))
-        # Bottom-right (width = placed_w)
+            out.append(FreeRectTL(x=fr.x + placed_w, y=fr.y, w=lw, h=fh))
+        # Bottom-left remainder (width = placed_w)
         if lh > 0:
-            out.append(FreeRectTR(xr=fr.xr, yt=fr.yt + placed_h, w=placed_w, h=lh))
+            out.append(FreeRectTL(x=fr.x, y=fr.y + placed_h, w=placed_w, h=lh))
     else:
-        # Left-top (height = placed_h)
+        # Right-top remainder (height = placed_h)
         if lw > 0 and placed_h > 0:
-            out.append(FreeRectTR(xr=fr.xr - placed_w, yt=fr.yt, w=lw, h=placed_h))
-        # Bottom (full width)
+            out.append(FreeRectTL(x=fr.x + placed_w, y=fr.y, w=lw, h=placed_h))
+        # Bottom remainder (full width)
         if lh > 0:
-            out.append(FreeRectTR(xr=fr.xr, yt=fr.yt + placed_h, w=fw, h=lh))
+            out.append(FreeRectTL(x=fr.x, y=fr.y + placed_h, w=fw, h=lh))
 
     return [r for r in out if r.w > 0 and r.h > 0]
 
 
-def ff_guillotine_layer_top_right(
+def ff_guillotine_layer_top_left(
     layer_w: float,
     layer_h: float,
     rects: List[Tuple[str, Rect2D]],  # (id, (w,h))
-    allow_rotate: bool = True,
+    allow_rotate: bool = True,        # Y-axis only: swap (w,h) in-plane
     split_rule: str = "larger_leftover",
     do_merge: bool = True,
-) -> Tuple[List[Placed2DTR], List[str]]:
+) -> Tuple[List[Placed2DTL], List[str]]:
     """
-    First-Fit Guillotine for a single 2D bin (layer) with top-right origin.
+    First-Fit Guillotine for a single 2D bin (layer) with TOP-LEFT origin.
     Returns (placed, unplaced_ids).
     """
-    free_rects: List[FreeRectTR] = [FreeRectTR(xr=0.0, yt=0.0, w=layer_w, h=layer_h)]
-    placed: List[Placed2DTR] = []
+    free_rects: List[FreeRectTL] = [FreeRectTL(x=0.0, y=0.0, w=layer_w, h=layer_h)]
+    placed: List[Placed2DTL] = []
     unplaced: List[str] = []
 
     for rid, r in rects:
@@ -269,8 +266,8 @@ def ff_guillotine_layer_top_right(
         fr_idx, used_w, used_h, rotated = candidate
         fr = free_rects.pop(fr_idx)
 
-        # Place at the free rectangle's top-right corner
-        placed.append(Placed2DTR(xr=fr.xr, yt=fr.yt, w=used_w, h=used_h, rotated=rotated))
+        # Place at the free rectangle's top-left corner
+        placed.append(Placed2DTL(x=fr.x, y=fr.y, w=used_w, h=used_h, rotated=rotated))
 
         # Split and update free list
         free_rects.extend(_split_guillotine(fr, used_w, used_h, split_rule=split_rule))
@@ -282,7 +279,7 @@ def ff_guillotine_layer_top_right(
 
 
 def _place_first_fit(
-    free_rects: List[FreeRectTR],
+    free_rects: List[FreeRectTL],
     r: Rect2D,
     allow_rotate: bool,
 ) -> Optional[Tuple[int, float, float, bool]]:
@@ -293,7 +290,7 @@ def _place_first_fit(
         # no rotation
         if r.w <= fr.w and r.h <= fr.h:
             return (i, r.w, r.h, False)
-        # rotate 90 degrees in-plane
+        # rotate 90 degrees in-plane (Y-axis in 3D): swap width/depth
         if allow_rotate and r.h <= fr.w and r.w <= fr.h:
             return (i, r.h, r.w, True)
     return None
@@ -303,29 +300,18 @@ def _place_first_fit(
 # 3D wrapper: stack guillotine-packed layers in z
 # ----------------------------
 
-def pack_truck_ff_guillotine_top_right(
-    truck: Truck_t,
-    boxes: List[Box_t],
+def pack_truck_ff_guillotine_top_left(
+    truck,  # Truck_t
+    boxes,  # List[Box_t]
     *,
-    allow_rotate_xy: bool = True,   # rotate in the floor plane (swap width/depth)
+    allow_rotate_y: bool = True,      # Y-axis only: swap width/depth
     sort_by: str = "footprint_desc",  # "footprint_desc" | "volume_desc" | "none"
     split_rule: str = "larger_leftover",
     do_merge: bool = True,
-) -> Tuple[List[PlacedBox_t], List[Box_t]]:
+):
     """
-    Packs boxes into the truck by stacking 2D guillotine layers.
-
-    Layering policy (simple, deterministic):
-      - take remaining boxes (sorted)
-      - choose layer_height = max height among remaining (i.e., the first box's height after sort by height desc)
-      - pack as many as possible on the floor (width x depth) using FF-Guillotine
-      - advance z by layer_height, repeat until height exhausted
-
-    Coordinates:
-      - x,y are returned in TOP-RIGHT-origin coordinates on each layer
-      - z increases upward from 0 (bottom of truck)
+    Same layering policy as before; now x,y are TOP-LEFT-origin per layer.
     """
-    # Choose sort order for packing attempts
     remaining = boxes[:]
     if sort_by == "footprint_desc":
         remaining.sort(key=lambda b: (b.width * b.depth), reverse=True)
@@ -334,60 +320,52 @@ def pack_truck_ff_guillotine_top_right(
     elif sort_by != "none":
         raise ValueError(f"Unknown sort_by: {sort_by}")
 
-    placed3d: List[PlacedBox_t] = []
-    unplaced_final: List[Box_t] = []
+    placed3d = []
+    unplaced_final = []
 
     z = 0.0
-    # Keep going while we have boxes and vertical room
     while remaining and z < truck.height:
-        # Greedy layer height choice: tallest remaining
         remaining.sort(key=lambda b: b.height, reverse=True)
         layer_height = remaining[0].height
 
         if z + layer_height > truck.height:
-            # Anything left cannot fit vertically
             unplaced_final.extend(remaining)
             break
 
-        # Prepare 2D rectangles for this layer (width x depth footprint).
-        # (We allow all boxes whose height <= layer_height; since layer_height is max, that is all of them.)
         rects2d: List[Tuple[str, Rect2D]] = [(b.id, Rect2D(b.width, b.depth)) for b in remaining]
 
-        placed2d, unplaced_ids = ff_guillotine_layer_top_right(
+        placed2d, _unplaced_ids = ff_guillotine_layer_top_left(
             layer_w=truck.width,
             layer_h=truck.depth,
             rects=rects2d,
-            allow_rotate=allow_rotate_xy,
+            allow_rotate=allow_rotate_y,
             split_rule=split_rule,
             do_merge=do_merge,
         )
 
-        # Convert layer placements to PlacedBox_t and remove placed from remaining
+        # IMPORTANT: do NOT use _find_id_for_placement() if you can avoid it.
+        # The clean fix is to carry the id in the placed record.
+        # Here is the minimal change approach: we remap by dimensions (can be ambiguous with duplicates).
         placed_ids = set()
         by_id = {b.id: b for b in remaining}
 
         for p in placed2d:
-            b = by_id[p_id := _find_id_for_placement(p, by_id)]
-            # rotation: 0 = no swap, 1 = swapped width/depth
+            bid = _find_id_for_placement_2d(p, by_id)
+            b = by_id[bid]
             placed3d.append(
                 PlacedBox_t(
                     id=b.id,
-                    x=p.xr,         # top-right origin coord
-                    y=p.yt,         # top-right origin coord
+                    x=p.x,            # TOP-LEFT origin coord
+                    y=p.y,            # TOP-LEFT origin coord
                     z=z,
-                    rotation=1 if p.rotated else 0,
+                    rotation=1 if p.rotated else 0,  # 1 means width/depth swapped (Y rotation)
                 )
             )
             placed_ids.add(b.id)
 
-        # Update remaining/unplaced for next layer attempt
-        new_remaining: List[Box_t] = []
-        for b in remaining:
-            if b.id not in placed_ids:
-                new_remaining.append(b)
+        new_remaining = [b for b in remaining if b.id not in placed_ids]
         remaining = new_remaining
 
-        # If nothing placed, stop to avoid infinite loop
         if not placed_ids:
             unplaced_final.extend(remaining)
             break
@@ -397,23 +375,17 @@ def pack_truck_ff_guillotine_top_right(
     return placed3d, unplaced_final
 
 
-def _find_id_for_placement(p: Placed2DTR, by_id: dict) -> str:
+def _find_id_for_placement_2d(p: Placed2DTL, by_id: dict) -> str:
     """
-    FF-Guillotine places items in order; a stable mapping is needed from placement back to an item id.
-    This helper assumes rects are packed as (id, Rect2D) in the same order as `remaining`,
-    and that ids are unique.
-
-    In this implementation, we reconstruct by matching dimensions (with rotation awareness).
-    If you can pass the id directly in the placement record, do that instead.
+    WARNING: ambiguous if you have multiple boxes with identical footprints.
+    Prefer to store the id in Placed2DTL directly.
     """
-    # Prefer exact match first
     for bid, b in by_id.items():
         if _almost_eq(p.w, b.width) and _almost_eq(p.h, b.depth) and not p.rotated:
             return bid
         if _almost_eq(p.w, b.depth) and _almost_eq(p.h, b.width) and p.rotated:
             return bid
 
-    # Fallback: match by footprint only (can be ambiguous if duplicates)
     for bid, b in by_id.items():
         if _almost_eq(p.w * p.h, b.width * b.depth):
             return bid
