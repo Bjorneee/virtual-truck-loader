@@ -52,5 +52,5 @@ def run_packing(req: PackingRequest) -> PackingResponse:
         unplaced=packed_load[1],
         utilization=0.0,
         runtime_ms=runtime_ms,
-        notes=["None."]
+        notes=packed_load[2]
     )

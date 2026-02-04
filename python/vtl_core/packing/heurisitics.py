@@ -308,30 +308,52 @@ def pack_truck_ff_guillotine_top_left(
     sort_by: str = "footprint_desc",  # "footprint_desc" | "volume_desc" | "none"
     split_rule: str = "larger_leftover",
     do_merge: bool = True,
-):
+) -> Tuple[List[PlacedBox_t], List[Box_t], List[str]]:
     """
-    Same layering policy as before; now x,y are TOP-LEFT-origin per layer.
+    Packs boxes into the truck by stacking 2D guillotine layers.
+
+    Layering policy (simple, deterministic):
+      - take remaining boxes (sorted)
+      - choose layer_height = max height among remaining (i.e., the first box's height after sort by height desc)
+      - pack as many as possible on the floor (width x depth) using FF-Guillotine
+      - advance z by layer_height, repeat until height exhausted
+
+    Coordinates:
+      - x,y are returned in TOP-LEFT-origin coordinates on each layer
+      - z increases upward from 0 (bottom of truck)
     """
+
+    # Packing detail log
+    log: List[str] = []
+
+    # Choose sort order for packing attempts
     remaining = boxes[:]
     if sort_by == "footprint_desc":
         remaining.sort(key=lambda b: (b.width * b.depth), reverse=True)
+        log.append("Remaining boxes sorted by footprint descending.")
     elif sort_by == "volume_desc":
         remaining.sort(key=lambda b: (b.width * b.depth * b.height), reverse=True)
+        log.append("Remaining boxes sorted by volume descending")
     elif sort_by != "none":
         raise ValueError(f"Unknown sort_by: {sort_by}")
 
-    placed3d = []
-    unplaced_final = []
+    placed3d : List[PlacedBox_t] = []
+    unplaced_final : List[Box_t] = []
 
     z = 0.0
+    # Keep going while boxes and vertical space remain
     while remaining and z < truck.height:
+        # Greedy layer height choice: tallest remaining
         remaining.sort(key=lambda b: b.height, reverse=True)
         layer_height = remaining[0].height
 
         if z + layer_height > truck.height:
+            # Anything left cannot fit vertically
             unplaced_final.extend(remaining)
             break
 
+        # Prepare 2D rectangles for this layer (width x depth footprint).
+        # (We allow all boxes whose height <= layer_height; since layer_height is max, that is all of them.)
         rects2d: List[Tuple[str, Rect2D]] = [(b.id, Rect2D(b.width, b.depth)) for b in remaining]
 
         placed2d, _unplaced_ids = ff_guillotine_layer_top_left(
@@ -363,16 +385,20 @@ def pack_truck_ff_guillotine_top_left(
             )
             placed_ids.add(b.id)
 
+        # Update remaining/unplaced layer
         new_remaining = [b for b in remaining if b.id not in placed_ids]
         remaining = new_remaining
 
+        # If nothing placed, stop to avoid infinite loop
         if not placed_ids:
             unplaced_final.extend(remaining)
             break
 
         z += layer_height
 
-    return placed3d, unplaced_final
+        log.append("Packed using FFG.")
+
+    return placed3d, unplaced_final, log
 
 
 def _find_id_for_placement_2d(p: Placed2DTL, by_id: dict) -> str:
