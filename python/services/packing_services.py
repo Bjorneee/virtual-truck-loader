@@ -1,6 +1,11 @@
 import time
+from typing import List, Tuple
+
 from python.api.schemas import PackingRequest, PackingResponse, PlacedBox, Box
 from python.vtl_core.domain import models
+from python.vtl_core.packing import heurisitics as packers
+
+from python.vtl_core.utils import get_utilization
 
 def run_packing(req: PackingRequest) -> PackingResponse:
     start = time.time()
@@ -25,7 +30,6 @@ def run_packing(req: PackingRequest) -> PackingResponse:
             height=box.height,
             depth=box.depth,
             weight=box.weight,
-            rotatable=box.rotatable,
             priority=box.priority
         )
         unplaced.append(Box.model_validate(internal, from_attributes=True))
@@ -33,22 +37,30 @@ def run_packing(req: PackingRequest) -> PackingResponse:
     # Sort by descending height
     unplaced.sort(key=lambda box: box.height, reverse=True)
 
-    placed = []
-    for box in unplaced:
-        placed.append(PlacedBox(
-            id=box.id,
-            x=0.0,
-            y=0.0,
-            z=0.0,
-            rotation=0
-        ))
+    # Run packing algorithm (ff guillotine for current implementation)
+    """
+    *Note: Current ffg implementation does not place boxes with id. Instead, it attempts
+    to match each placed box to an existing id. Need to change this eventually, as it will
+    likely cause problems for boxes with matching specs.
+    """
+    packed_load = packers.pack_truck_ff_guillotine_top_left(
+        truck=truck,
+        boxes=unplaced
+    )
         
+    utilization = 0.0 
+    """get_utilization(
+        truck=truck,
+        load=unplaced,
+        placed=packed_load[0]
+    )
+    """
     runtime_ms = (time.time() - start) * 1000
 
     return PackingResponse(
-        placed=placed,
-        unplaced=unplaced,
-        utilization=0.0,
+        placed=packed_load[0],
+        unplaced=packed_load[1],
+        utilization=utilization,
         runtime_ms=runtime_ms,
-        notes=["None."]
+        notes=packed_load[2]
     )

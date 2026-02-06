@@ -9,7 +9,6 @@ class Box(BaseModel):
     height: float
     depth: float
     weight: float
-    rotatable: bool = False
     priority: Optional[float] = 0.0
 
 class Truck(BaseModel):
