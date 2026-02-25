@@ -20,12 +20,18 @@ public class UIManager : MonoBehaviour
     private FloatField _inputLength;
     private FloatField _inputWidth;
     private FloatField _inputHeight;
+    private FloatField _inputWeight;
+    private Toggle _toggleStackable;
     private Button _btnSave;
     private List<GameObject> _visualBoxes = new List<GameObject>();
     private Button _btnLoad;
     private Button _btnFile;
     private Button _btnAddMenu;
     private Button _btnView;
+    private Label _lblWeight;
+    private Label _lblVolume;
+    private CargoItem _currentlySelectedItem = null;
+
 
     [Header("Camera Angles")]
     public Transform mainCamera;
@@ -34,6 +40,8 @@ public class UIManager : MonoBehaviour
     public Vector3 topPos, topRot;
     public Vector3 sidePos, sideRot;
     private int _currentViewIndex = 0;
+    public CameraController cameraControl;
+
     // We can add weight/stackable later
 
     // The actual list of data
@@ -47,6 +55,8 @@ public class UIManager : MonoBehaviour
         _inputLength = root.Q<FloatField>("InputLength");
         _inputWidth = root.Q<FloatField>("InputWidth");
         _inputHeight = root.Q<FloatField>("InputHeight");
+        _inputWeight = root.Q<FloatField>("InputWeight");
+        _toggleStackable = root.Q<Toggle>("ToggleStackable");
         _btnSave = root.Q<Button>("BtnSave");
         _btnLoad = root.Q<Button>("BtnLoad");
         _btnFile = root.Q<Button>("BtnFile");
@@ -55,6 +65,13 @@ public class UIManager : MonoBehaviour
         _truckL = root.Q<FloatField>("TruckL");
         _truckW = root.Q<FloatField>("TruckW");
         _truckH = root.Q<FloatField>("TruckH");
+        _lblWeight = root.Q<Label>("LblWeight");
+        _lblVolume = root.Q<Label>("LblVolume");
+
+        _inputLength.RegisterValueChangedCallback(OnInputChanged);
+        _inputWidth.RegisterValueChangedCallback(OnInputChanged);
+        _inputHeight.RegisterValueChangedCallback(OnInputChanged);
+        _inputWeight.RegisterValueChangedCallback(OnInputChanged);
 
         // 1. Find the ListView
         _itemListView = root.Q<ListView>("ItemListView");
@@ -75,6 +92,8 @@ public class UIManager : MonoBehaviour
         _truckL.RegisterValueChangedCallback(evt => UpdateTruckSize());
         _truckW.RegisterValueChangedCallback(evt => UpdateTruckSize());
         _truckH.RegisterValueChangedCallback(evt => UpdateTruckSize());
+
+        _itemListView.selectionChanged += OnItemSelected;
 
 
     }
@@ -112,23 +131,22 @@ public class UIManager : MonoBehaviour
 
     private void OnAddClicked()
     {
+        _itemListView.ClearSelection();
+        _currentlySelectedItem = null;
         float l = _inputLength.value;
         float w = _inputWidth.value;
         float h = _inputHeight.value;
+        float weight = _inputWeight.value;
+        bool isStackable = _toggleStackable.value;
 
         if (l == 0 || w == 0 || h == 0) return;
 
-        // 1. Create the Data Object
-        var newItem = new CargoItem($"Box {_inventory.Count + 1}", l, w, h, 10, true);
+        var newItem = new CargoItem($"Box {_inventory.Count + 1}", l, w, h, weight, isStackable);
 
-        // 2. Add to our list
         _inventory.Add(newItem);
-
-        // 3. Refresh the UI
         _itemListView.RefreshItems();
-
-        // 4. (Still spawn visuals for fun/testing)
         SpawnVisualBox(newItem);
+        UpdateMetrics();
     }
 
     private void SpawnVisualBox(CargoItem item)
@@ -162,6 +180,7 @@ public class UIManager : MonoBehaviour
     }
     private void ClearAll()
     {
+        _itemListView.ClearSelection();
         // 1. Destroy all 3D objects
         foreach (GameObject box in _visualBoxes)
         {
@@ -211,6 +230,7 @@ public class UIManager : MonoBehaviour
         _itemListView.RefreshItems();
 
         Debug.Log($"<color=green>LOADED:</color> {loadedData.items.Count} items.");
+        UpdateMetrics();
     }
     private void UpdateTruckSize()
     {
@@ -225,6 +245,7 @@ public class UIManager : MonoBehaviour
         // Note: Unity Plane scale 1 = 10 meters, Cube scale 1 = 1 meter.
         // Assuming your TruckBed is a Cube:
         truckBedObject.transform.localScale = new Vector3(l, 0.1f, w);
+        UpdateMetrics();
     }
     private void RemoveItem(CargoItem itemToRemove)
     {
@@ -246,6 +267,7 @@ public class UIManager : MonoBehaviour
         _itemListView.RefreshItems();
 
         Debug.Log($"Removed {itemToRemove.Name}");
+        UpdateMetrics();
     }
     // 1. FILE BUTTON: Acts as "New Scene / Reset"
     private void OnFileClicked()
@@ -274,7 +296,7 @@ public class UIManager : MonoBehaviour
     // 3. VIEW BUTTON: Cycles Camera Angles
     private void OnViewClicked()
     {
-        if (mainCamera == null) return;
+        if (cameraControl == null) return;
 
         _currentViewIndex++;
         if (_currentViewIndex > 2) _currentViewIndex = 0;
@@ -282,20 +304,125 @@ public class UIManager : MonoBehaviour
         switch (_currentViewIndex)
         {
             case 0: // ISOMETRIC
-                SetCamera(isoPos, isoRot);
+                cameraControl.SetViewAngle(new Vector3(35, 45, 0)); // Standard Iso
                 break;
             case 1: // TOP DOWN
-                SetCamera(topPos, topRot);
+                cameraControl.SetViewAngle(new Vector3(90, 0, 0));
                 break;
             case 2: // SIDE VIEW
-                SetCamera(sidePos, sideRot);
+                cameraControl.SetViewAngle(new Vector3(0, -90, 0));
                 break;
         }
-    }
 
-    private void SetCamera(Vector3 pos, Vector3 rot)
+        Debug.Log("Switched View Index: " + _currentViewIndex);
+    }
+    private void UpdateMetrics()
     {
-        mainCamera.position = pos;
-        mainCamera.rotation = Quaternion.Euler(rot);
+        // 1. Calculate Truck Volume
+        float truckL = _truckL.value;
+        float truckW = _truckW.value;
+        float truckH = _truckH.value;
+
+        // Prevent dividing by zero if inputs are empty
+        if (truckL <= 0 || truckW <= 0 || truckH <= 0) return;
+
+        float maxVolume = truckL * truckW * truckH;
+
+        // 2. Tally up the Boxes
+        float currentVolume = 0f;
+        float currentWeight = 0f;
+
+        foreach (var item in _inventory)
+        {
+            currentVolume += (item.Length * item.Width * item.Height);
+            currentWeight += item.Weight;
+        }
+
+        // 3. Calculate Percentage
+        float fillPercentage = (currentVolume / maxVolume) * 100f;
+
+        // 4. Update the UI Text (F1 formats it to 1 decimal place, e.g., "45.2")
+        _lblWeight.text = $"Total Weight: {currentWeight:F1} kg";
+        _lblVolume.text = $"Volume Used: {fillPercentage:F1}%";
+
+        // Bonus: Make the text turn RED if you overfill the truck (>100%)
+        if (fillPercentage > 100f)
+            _lblVolume.style.color = Color.red;
+        else
+            _lblVolume.style.color = Color.white;
+    }
+    // This runs automatically whenever a row is clicked
+    private void OnItemSelected(System.Collections.Generic.IEnumerable<object> selectedItems)
+    {
+        // 1. RESET COLORS: Turn all boxes back to their normal colors first
+        for (int i = 0; i < _visualBoxes.Count; i++)
+        {
+            if (_visualBoxes[i] != null)
+            {
+                _visualBoxes[i].GetComponent<Renderer>().material.color = _inventory[i].DisplayColor;
+            }
+        }
+
+        // 2. CHECK SELECTION: Did we actually click something?
+        var enumerator = selectedItems.GetEnumerator();
+        if (!enumerator.MoveNext())
+        {
+            _currentlySelectedItem = null; // We deselected
+            return;
+        }
+
+        // 3. GET THE DATA: Grab the specific CargoItem we clicked
+        CargoItem selectedData = (CargoItem)enumerator.Current;
+        _currentlySelectedItem = selectedData;
+
+        // Find out which row number this is (Index)
+        int selectedIndex = _inventory.IndexOf(selectedData);
+
+        // 4. HIGHLIGHT 3D BOX: Turn the corresponding 3D box Bright Yellow
+        if (selectedIndex >= 0 && selectedIndex < _visualBoxes.Count)
+        {
+            _visualBoxes[selectedIndex].GetComponent<Renderer>().material.color = Color.yellow;
+        }
+
+        // 5. FILL RIGHT PANEL: Push the data into the input fields
+        _inputLength.value = selectedData.Length;
+        _inputWidth.value = selectedData.Width;
+        _inputHeight.value = selectedData.Height;
+        _inputWeight.value = selectedData.Weight;
+        _toggleStackable.value = selectedData.IsStackable;
+
+        Debug.Log($"Selected {selectedData.Name} in the Editor!");
+    }
+    private void OnInputChanged(ChangeEvent<float> evt)
+    {
+        // If we haven't clicked a box in the list, don't do anything.
+        // (This allows us to still type numbers to create NEW boxes)
+        if (_currentlySelectedItem == null) return;
+
+        // 1. Update the Data Object with the new numbers
+        _currentlySelectedItem.Length = _inputLength.value;
+        _currentlySelectedItem.Width = _inputWidth.value;
+        _currentlySelectedItem.Height = _inputHeight.value;
+        _currentlySelectedItem.Weight = _inputWeight.value;
+
+        // 2. Find which 3D box this is
+        int index = _inventory.IndexOf(_currentlySelectedItem);
+
+        // 3. Resize the 3D Box instantly!
+        if (index >= 0 && index < _visualBoxes.Count)
+        {
+            GameObject boxToResize = _visualBoxes[index];
+            boxToResize.transform.localScale = new Vector3(
+                _currentlySelectedItem.Length,
+                _currentlySelectedItem.Height,
+                _currentlySelectedItem.Width
+            );
+        }
+
+        // 4. Update the UI text in the Left Panel list
+        _itemListView.RefreshItems();
+
+        // 5. Update the Total Volume/Weight calculations at the bottom left
+        UpdateMetrics();
     }
 }
