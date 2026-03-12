@@ -2,18 +2,22 @@
     <Style src="project://database/Assets/_UI/MainStyles.uss?fileID=7433441132597879392&amp;guid=f1217d311cc53a94580edc6141f5d6b5&amp;type=3#MainStyles" />
     <ui:VisualElement name="RootContainer" style="flex-grow: 1;">
         <ui:VisualElement name="TopBar" style="flex-grow: 1; height: 60px; background-color: rgb(45, 45, 45); flex-direction: row; align-items: center; padding-left: 10px;">
-            <ui:Button text="Save" name="Save" class="toolbar-button" />
-            <ui:Button text="File" name="File" class="toolbar-button" />
-            <ui:Button text="Add" name="Add" class="toolbar-button" />
-            <ui:Button text="Load" name="Load" class="toolbar-button" />
-            <ui:Button text="View" name="View" class="toolbar-button" />
+            <ui:Button text="💾 Save" name="BtnSave" class="toolbar-button" />
+            <ui:Button text="📂 File" name="BtnFile" class="toolbar-button" />
+            <ui:Button text="➕ Add" name="BtnAddMenu" class="toolbar-button" />
+            <ui:Button text="📥 Load" name="BtnLoad" class="toolbar-button" />
+            <ui:Button text="👁️ View" name="BtnView" class="toolbar-button" />
         </ui:VisualElement>
         <ui:VisualElement name="MainContent" style="flex-grow: 1; flex-direction: row;">
             <ui:VisualElement name="LeftPanel" style="flex-grow: 1; width: 250px; background-color: rgb(56, 56, 56);">
-                <ui:Label text="Container Stats" name="Stats" class="text-light" style="-unity-font-style: bold; padding-top: 4px; margin-top: 10px; margin-left: 10px;" />
-                <ui:Label text="Volume Used: 0%" name="Volume" class="text-light" style="margin-left: 5px;" />
-                <ui:Label text="Items Packed: 0" name="Items" class="text-light" style="margin-left: 5px;" />
-                <ui:Label text="Weight: 0 kg" name="Weight" class="text-light" style="margin-left: 5px;" />
+                <ui:Label text="Truck Dimensions&#10;" name="TruckDimensions" class="text-light" style="-unity-font-style: bold; margin-top: 10px; margin-left: 5px;" />
+                <ui:VisualElement name="TruckSettings" style="flex-grow: 0; flex-direction: row; align-items: center; height: auto; border-left-color: rgb(229, 229, 229); border-right-color: rgb(229, 229, 229); border-top-color: rgb(229, 229, 229); border-bottom-color: rgb(229, 229, 229); border-bottom-width: 0; border-top-width: 0;">
+                    <ui:FloatField label="L" value="42.2" name="TruckL" class="text-light truck-input input-field" style="width: auto; flex-grow: 1; margin-right: 5px;" />
+                    <ui:FloatField label="W" value="42.2" name="TruckW" class="text-light truck-input input-field" style="width: auto; flex-grow: 1; margin-right: 5px;" />
+                    <ui:FloatField label="H" value="42.2" name="TruckH" class="text-light truck-input input-field" style="width: auto; flex-grow: 1;" />
+                </ui:VisualElement>
+                <ui:Label text="Inventory List&#10;" name="Stats" class="text-light" style="-unity-font-style: bold; padding-top: 4px; margin-top: 10px; margin-left: 4px; border-top-width: 1px; border-left-color: rgb(229, 229, 229); border-right-color: rgb(229, 229, 229); border-top-color: rgb(229, 229, 229); border-bottom-color: rgb(229, 229, 229);" />
+                <ui:ListView name="ItemListView" style="flex-grow: 1; margin-top: 5px; border-top-width: 0; border-left-color: rgb(229, 229, 229); border-right-color: rgb(229, 229, 229); border-top-color: rgb(229, 229, 229); border-bottom-color: rgb(229, 229, 229); padding-top: 5px; border-bottom-width: 0;" />
             </ui:VisualElement>
             <ui:VisualElement name="CenterView" style="flex-grow: 1; background-color: rgba(0, 0, 0, 0);" />
             <ui:VisualElement name="RightPanel" style="flex-grow: 1; width: 300px; background-color: rgb(56, 56, 56);">

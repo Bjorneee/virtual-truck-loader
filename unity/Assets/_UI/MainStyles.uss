@@ -18,3 +18,11 @@ VisualElement {
 .unity-base-text-field__input {
     color: rgb(0, 0, 0);
 }
+
+.truck-input {
+}
+
+.truck-input .unity-base-field__label {
+    min-width: auto;
+    width: auto;
+}
