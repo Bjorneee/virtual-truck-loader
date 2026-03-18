@@ -1,0 +1,1 @@
+# Reward terms aligned with scoring.py

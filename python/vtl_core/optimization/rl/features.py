@@ -1,0 +1,1 @@
+# State encoding, normilization

@@ -8,36 +8,48 @@ The Python backend provides:
 - Lightweight data processing
 
 ## Folder Structure
-python/
-├─ api/
-│ ├─ main.py
-│ ├─ config.py
-│ └─ deps.py
-├─ vtl_core/
-│ ├─ __init__.py
-│ ├─ schemas.py
-│ ├─ packing/
-│ │ ├─ constraints.py
-│ │ └─ heuristics.py
-│ └─ utils.py
-├─ tests/
-│ ├─ test_api.py
-│ └─ test_packing.py
-└─ requirements.txt
+python/  
+├─ api/  
+│ ├─ main.py  
+│ ├─ routes.py  
+│ ├─ logging.py  
+│ ├─ config.py  
+│ ├─ schemas.py  
+│ └─ deps.py    
+├─ services/  
+│ └─ packing_services.py  
+├─ vtl_core/  
+│ ├─ __init__.py  
+│ ├─ domain/  
+│ │ ├─ errors.py  
+│ │ └─ models.py  
+│ ├─ optimization/  
+│ ├─ packing/  
+│ │ ├─ constraints.py  
+│ │ ├─ heuristics.py  
+│ │ ├─ postprocess.py  
+│ │ └─ scoring.py  
+│ └─ utils.py  
+├─ tests/  
+│ ├─ test_load.json  
+│ ├─ test_optimization.py  
+│ └─ test_packing.py  
+├─ __init__.py  
+└─ requirements.txt  
 
 ## API Entrypoint
 `api/main.py`
 - Exposes endpoints:
   - `GET /health`
-  - `POST /load`
+  - `POST /pack`
 
 ## Data Models
-(`vtl_core/schemas.py`)
-- `BoxIn`
-- `TruckIn`
-- `LoadRequest`
-- `Placement`
-- `LoadResponse`
+(`api/schemas.py`)
+- `Box`
+- `Truck`
+- `PackingRequest`
+- `PlacedBox`
+- `PackingResponse`
 
 ## Packing Logic
 (`vtl_core/packing/heuristics.py`)
@@ -52,9 +64,13 @@ python/
 
 ## How To Run
 cd python
+
 python -m venv .venv
+
 source .venv/bin/activate
+
 pip install -r requirements.txt
+
 python api/main.py
 
 ## How To Test
