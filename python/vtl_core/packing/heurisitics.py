@@ -11,10 +11,151 @@ Currently implemented heuristics:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
 
 from python.vtl_core.domain.models import Box_t, PlacedBox_t, Truck_t
+
+@dataclass
+class Row:
+    z_start: float
+    depth_used: float = 0.0
+    x_cursor: float = 0.0
+
+
+@dataclass
+class Layer:
+    y_start: float
+    height: float
+    depth_cursor: float = 0.0
+    rows: List[Row] = field(default_factory=list)
+
+
+def first_fit_pack(truck: Truck_t, boxes: List[Box_t]) -> List[PlacedBox_t]:
+    """
+    Basic layered first-fit packing using internal dataclasses.
+
+    Inputs:
+        truck: Truck_t
+        boxes: List[Box_t], expected to be sorted by descending height
+
+    Output:
+        Tuple[List[PlacedBox_t], List[str]]
+
+    Side effect:
+        The original `boxes` list is modified in place so that after packing,
+        it contains only boxes that could not be placed.
+
+    Notes:
+        - No rotation is performed in this version.
+        - No weight-limit enforcement yet.
+        - Uses a simple layered shelf/row strategy.
+    """
+
+    placed: List[PlacedBox_t] = []
+    layers: List[Layer] = []
+    unplaced: List[Box_t] = []
+    notes: List[str] = []
+
+    for box in boxes:
+
+        print("Attempting: [" + box.id + "]")
+        # Reject immediately if the box cannot fit in the truck at all
+        if (
+            box.width > truck.width
+            or box.height > truck.height
+            or box.depth > truck.depth
+        ):
+            unplaced.append(box)
+            notes.append("Box: [" + box.id + "] does not fit in truck.")
+            print("Failure on: [" + box.id + "]")
+            continue
+
+        was_placed = False
+
+        # 1) Try to place in existing rows of existing layers
+        for layer in layers:
+            if box.height > layer.height:
+                continue
+
+            for row in layer.rows:
+                fits_width = row.x_cursor + box.width <= truck.width
+                fits_row_depth = box.depth <= row.depth_used
+
+                if fits_width and fits_row_depth:
+                    placed.append(
+                        PlacedBox_t(
+                            id=box.id,
+                            x=row.x_cursor,
+                            y=layer.y_start,
+                            z=row.z_start,
+                            rotation=0,
+                        )
+                    )
+                    row.x_cursor += box.width
+                    was_placed = True
+                    print("Box placed: [" + box.id + "]")
+                    break
+
+            if was_placed:
+                break
+
+            # 2) Try creating a new row in this existing layer
+            if layer.depth_cursor + box.depth <= truck.depth:
+                new_row = Row(
+                    z_start=layer.depth_cursor,
+                    depth_used=box.depth,
+                    x_cursor=box.width,
+                )
+                layer.rows.append(new_row)
+                layer.depth_cursor += box.depth
+
+                placed.append(
+                    PlacedBox_t(
+                        id=box.id,
+                        x=0.0,
+                        y=layer.y_start,
+                        z=new_row.z_start,
+                        rotation=0,
+                    )
+                )
+                was_placed = True
+                print("Box placed: [" + box.id + "]")
+                break
+
+        if was_placed:
+            continue
+
+        # 3) Try creating a new layer
+        used_height = sum(layer.height for layer in layers)
+        if used_height + box.height <= truck.height:
+            new_layer = Layer(
+                y_start=used_height,
+                height=box.height,
+                depth_cursor=box.depth,
+                rows=[Row(z_start=0.0, depth_used=box.depth, x_cursor=box.width)],
+            )
+            layers.append(new_layer)
+
+            placed.append(
+                PlacedBox_t(
+                    id=box.id,
+                    x=0.0,
+                    y=new_layer.y_start,
+                    z=0.0,
+                    rotation=0,
+                )
+            )
+            print("Box placed: [" + box.id + "]")
+        else:
+            unplaced.append(box)
+            print("Failure on: [" + box.id + "]")
+
+    # Modify input list in place to keep only boxes that could not be placed
+    boxes[:] = unplaced
+    notes.append("Packed with First-Fit")
+
+    return [placed, notes]
 
 """
 
