@@ -1,7 +1,7 @@
 # Item, Container, Placement, Solution (Internal Dataclasses)
 
 from dataclasses import dataclass
-from typing import Literal, List, Optional
+from typing import Literal, Optional
 
 @dataclass
 class Box_t:
