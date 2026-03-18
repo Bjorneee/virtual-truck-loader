@@ -25,7 +25,10 @@ public class UIManager : MonoBehaviour
     private Button _btnLoad;
     private Button _btnFile;
     private Button _btnAddMenu;
+    private Button _btnSort;
     private Button _btnView;
+    //private Dictionary<string, GameObject> _itemToBox = new Dictionary<string, GameObject>();
+    private Dictionary<string, GameObject> _itemObjects = new Dictionary<string, GameObject>();
 
     [Header("Camera Angles")]
     public Transform mainCamera;
@@ -52,6 +55,8 @@ public class UIManager : MonoBehaviour
         _btnFile = root.Q<Button>("BtnFile");
         _btnAddMenu = root.Q<Button>("BtnAddMenu");
         _btnView = root.Q<Button>("BtnView");
+        _btnSort = root.Q<Button>("BtnSort");
+
         _truckL = root.Q<FloatField>("TruckL");
         _truckW = root.Q<FloatField>("TruckW");
         _truckH = root.Q<FloatField>("TruckH");
@@ -62,15 +67,13 @@ public class UIManager : MonoBehaviour
         // 2. Setup the List Logic (Crucial Step)
         ConfigureListView();
 
-        if (_btnAdd != null)
-            _btnAdd.clicked += OnAddClicked;
-        if (_btnSave != null)
-            _btnSave.clicked += OnSaveClicked;
-        if (_btnLoad != null)
-            _btnLoad.clicked += OnLoadClicked;
-        if (_btnFile != null) _btnFile.clicked += OnFileClicked;
+        if (_btnAdd != null)     _btnAdd.clicked += OnAddClicked;
+        if (_btnSave != null)    _btnSave.clicked += OnSaveClicked;
+        if (_btnLoad != null)    _btnLoad.clicked += OnLoadClicked;
+        if (_btnFile != null)    _btnFile.clicked += OnFileClicked;
         if (_btnAddMenu != null) _btnAddMenu.clicked += OnAddMenuClicked;
-        if (_btnView != null) _btnView.clicked += OnViewClicked;
+        if (_btnView != null)    _btnView.clicked += OnViewClicked;
+        if (_btnSort != null) _btnSort.clicked += OnSortClicked;
 
         _truckL.RegisterValueChangedCallback(evt => UpdateTruckSize());
         _truckW.RegisterValueChangedCallback(evt => UpdateTruckSize());
@@ -120,6 +123,7 @@ public class UIManager : MonoBehaviour
 
         // 1. Create the Data Object
         var newItem = new CargoItem($"Box {_inventory.Count + 1}", l, w, h, 10, true);
+        newItem.Position = spawnLocation.position;
 
         // 2. Add to our list
         _inventory.Add(newItem);
@@ -133,14 +137,31 @@ public class UIManager : MonoBehaviour
 
     private void SpawnVisualBox(CargoItem item)
     {
-        GameObject newBox = Instantiate(boxPrefab, spawnLocation.position, Quaternion.identity);
+        Vector3 spawnPos = item.Position != Vector3.zero ? item.Position : spawnLocation.position;
+        //Vector3 spawnPos = item.Position;
+        //if (spawnPos == Vector3.zero)
+        //    spawnPos = spawnLocation.position;
+
+        GameObject newBox = Instantiate(boxPrefab, spawnPos, Quaternion.identity);
         newBox.transform.localScale = new Vector3(item.Length, item.Height, item.Width);
         newBox.GetComponent<Renderer>().material.color = item.DisplayColor;
+
         _visualBoxes.Add(newBox);
+        _itemObjects[item.Id] = newBox;//itemObjects or _itemToBox
 
     }
     private void OnSaveClicked()
     {
+        //Save current box positions back into inventory data
+        foreach (CargoItem item in _inventory)
+        {
+            if(_itemObjects.TryGetValue(item.Id, out GameObject box) && box != null)
+            {
+                item.Position = box.transform.position;
+                Debug.Log($"{item.Name} saved at position {item.Position}");
+            }
+        }
+
         // 1. Wrap the list
         InventoryData data = new InventoryData();
         data.items = _inventory;
@@ -160,6 +181,89 @@ public class UIManager : MonoBehaviour
 
         Debug.Log($"<color=cyan>SAVED JSON to:</color> {path}");
     }
+
+    private void WritePackRequestJSON()
+    {
+        PackRequestData request = new PackRequestData();
+        request.TruckLength = _truckL.value;
+        request.TruckWidth = _truckW.value;
+        request.TruckHeight = _truckH.value;
+        request.items = new List<PackRequestItem>();
+
+        foreach (CargoItem item in _inventory)
+        {
+            PackRequestItem requestedItem = new PackRequestItem
+            {
+                Id = item.Id,
+                Length = item.Length,
+                Width = item.Width,
+                Height = item.Height,
+                Weight = item.Weight,
+            };
+
+            request.items.Add(requestedItem);
+
+            Debug.Log($"ITEM PACK REQUEST: -> {item.Name} | ID={item.Id} | L={item.Length}, W={item.Width}, H={item.Height}, Weight={item.Weight}");
+        }
+
+        //write JSON
+        string requestJson = JsonUtility.ToJson(request, true);
+        string requestPath = Path.Combine(Application.persistentDataPath, "pack_request.json");
+        File.WriteAllText(requestPath, requestJson);
+
+        Debug.Log($"<color=cyan>PACK REQUEST SAVED to:</color> {requestPath}");
+    }
+
+    private void WritePackResponseJSON()
+    {
+        //Read backend response JSON
+        string responsePath = Path.Combine(Application.persistentDataPath, "pack_response.json");
+
+        if (!File.Exists(responsePath))
+        {
+            Debug.LogWarning($"No pack response file found at: {responsePath}");
+            return;
+        }
+
+        string responseJson = File.ReadAllText(responsePath);
+        PackResponseData response = JsonUtility.FromJson<PackResponseData>(responseJson);
+
+        if (response == null || response.items == null)
+        {
+            Debug.LogError("Invalid pack response JSON.");
+            return;
+        }
+
+        //Apply returned positions
+        foreach (PackResponseItem responseItem in response.items)
+        {
+            if (_itemObjects.TryGetValue(responseItem.Id, out GameObject box))
+            {
+                box.transform.position = responseItem.Position;
+
+                CargoItem item = _inventory.Find(x => x.Id == responseItem.Id);
+                if (item != null)
+                {
+                    item.Position = responseItem.Position;
+                    item.Rotation = responseItem.Rotation;
+                }
+
+                Debug.Log($"SORT RESPONSE -> ID={responseItem.Id} moved to {responseItem.Position}");
+            }
+            else
+            {
+                Debug.LogWarning($"No spawned box found for backend item ID: {responseItem.Id}");
+            }
+        }
+
+        Debug.Log("<color=green>PACK RESPONSE APPLIED</color>");
+    }
+    private void OnSortClicked()
+    {
+        WritePackRequestJSON();
+        WritePackResponseJSON();
+
+    }
     private void ClearAll()
     {
         // 1. Destroy all 3D objects
@@ -171,9 +275,11 @@ public class UIManager : MonoBehaviour
 
         // 2. Clear the data list
         _inventory.Clear();
+        _itemObjects.Clear();
 
         // 3. Update UI
         _itemListView.RefreshItems();
+
     }
     private void OnLoadClicked()
     {
@@ -188,8 +294,9 @@ public class UIManager : MonoBehaviour
         // 1. Read the text
         string json = File.ReadAllText(path);
 
-        // 2. Clear the current scene first!
+        // 2. Clear the current scene
         ClearAll();
+        _itemObjects.Clear();
 
         // 3. Convert JSON back to Data
         InventoryData loadedData = JsonUtility.FromJson<InventoryData>(json);
@@ -202,9 +309,9 @@ public class UIManager : MonoBehaviour
         {
             // Add to data list
             _inventory.Add(item);
-
-            // Spawn visual (This will look cool as they all drop in!)
             SpawnVisualBox(item);
+
+            Debug.Log($"{item.Name} loaded at position {item.Position}");
         }
 
         // 5. Refresh UI
