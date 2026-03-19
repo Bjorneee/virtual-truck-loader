@@ -1,13 +1,11 @@
 using UnityEngine;
+using UnityEngine.EventSystems;
 
 public class ObjectManipulator : MonoBehaviour
 {
-    [Header("Settings")]
-    public Material selectedMaterial; // The color when clicked (e.g., Bright Yellow)
-    public LayerMask boxLayer; // To ensure we only click boxes, not the floor
+    public LayerMask boxLayer;
 
     private GameObject _selectedObject;
-    private Material _originalMaterial;
     private Vector3 _offset;
     private float _cameraDistance;
 
@@ -16,57 +14,71 @@ public class ObjectManipulator : MonoBehaviour
         // 1. SELECTING (Left Click Down)
         if (Input.GetMouseButtonDown(0))
         {
+            if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject())
+            {
+                return;
+            }
             Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(ray, out RaycastHit hit, 100f, boxLayer))
             {
-                SelectObject(hit.transform.gameObject);
+                _selectedObject = hit.transform.gameObject;
 
                 // Prepare for dragging
                 _cameraDistance = hit.distance;
-                _offset = hit.transform.position - GetMouseWorldPos();
+                _offset = _selectedObject.transform.position - GetMouseWorldPos();
+
+                // TELL THE UI WE CLICKED SOMETHING!
+                if (UIManager.Instance != null)
+                {
+                    UIManager.Instance.SetSelectionFrom3D(_selectedObject);
+                }
             }
             else
             {
                 // Clicked empty space? Deselect.
-                DeselectObject();
+                _selectedObject = null;
+                if (UIManager.Instance != null)
+                {
+                    UIManager.Instance.ClearSelectionFrom3D();
+                }
             }
         }
-
         // 2. DRAGGING (Left Click Hold)
         if (_selectedObject != null && Input.GetMouseButton(0))
         {
             Vector3 targetPos = GetMouseWorldPos() + _offset;
-            // Lock Y so it stays on the floor (optional, assumes floor is at Y=0 or box height)
+
+            // NEW: The "Invisible Fence"
+            if (UIManager.Instance != null)
+            {
+                // Get the truck boundaries (divided by 2 because the truck is centered at 0,0)
+                float maxL = UIManager.Instance.TruckL / 2f;
+                float maxW = UIManager.Instance.TruckW / 2f;
+
+                // Subtract half the box's size so the *edge* of the box doesn't hang off the floor
+                float boxL = _selectedObject.transform.localScale.x / 2f;
+                float boxW = _selectedObject.transform.localScale.z / 2f;
+
+                // Clamp the X and Z coordinates so they cannot exceed the truck floor
+                targetPos.x = Mathf.Clamp(targetPos.x, -maxL + boxL, maxL - boxL);
+                targetPos.z = Mathf.Clamp(targetPos.z, -maxW + boxW, maxW - boxW);
+            }
+
+            // Lock Y so it stays on the floor (or on top of other boxes)
             targetPos.y = _selectedObject.transform.position.y;
 
             _selectedObject.transform.position = targetPos;
         }
-
-        // 3. DESELECT (Left Click Up)
-        if (Input.GetMouseButtonUp(0))
+        // Add this at the very end of your Update() function:
+        // 4. THE SAFETY NET
+        // If the box falls into the void due to physics knocking it over, teleport it back!
+        if (_selectedObject != null && _selectedObject.transform.position.y < -2f)
         {
-            // Optional: Snap to grid here if you want
-        }
-    }
+            _selectedObject.transform.position = new Vector3(0, UIManager.Instance.TruckH, 0);
 
-    void SelectObject(GameObject obj)
-    {
-        if (_selectedObject == obj) return;
-
-        DeselectObject(); // Reset previous
-
-        _selectedObject = obj;
-        var renderer = _selectedObject.GetComponent<Renderer>();
-        _originalMaterial = renderer.material; // Remember original color
-        renderer.material = selectedMaterial; // Change to highlight color
-    }
-
-    void DeselectObject()
-    {
-        if (_selectedObject != null)
-        {
-            _selectedObject.GetComponent<Renderer>().material = _originalMaterial; // Restore color
-            _selectedObject = null;
+            // Kill its momentum so it doesn't keep falling fast
+            Rigidbody rb = _selectedObject.GetComponent<Rigidbody>();
+            if (rb != null) rb.linearVelocity = Vector3.zero;
         }
     }
 

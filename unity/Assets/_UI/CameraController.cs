@@ -57,6 +57,11 @@ public class CameraController : MonoBehaviour
         Quaternion rotation = Quaternion.Euler(_currentRotation.y, _currentRotation.x, 0);
         Vector3 position = (target.position + _targetOffset) - (rotation * Vector3.forward * _currentZoom);
 
+        if (position.y < 0.5f)
+        {
+            position.y = 0.5f;
+        }
+
         transform.rotation = rotation;
         transform.position = position;
     }
