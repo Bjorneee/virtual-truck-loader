@@ -9,28 +9,42 @@ from panda3d.core import (
 )
 
 
-def create_cube(size=1.0):
-    half = size / 2.0
+def create_box(width, height, depth):
+    hx = width / 2.0
+    hy = height / 2.0
+    hz = depth / 2.0
 
     fmt = GeomVertexFormat.getV3n3()
-    vdata = GeomVertexData("cube", fmt, Geom.UHStatic)
+    vdata = GeomVertexData("box", fmt, Geom.UHStatic)
 
     vertex = GeomVertexWriter(vdata, "vertex")
     normal = GeomVertexWriter(vdata, "normal")
 
+    # Faces: (normal, vertices)
     faces = [
-        ((0, -1, 0), [(-half, -half, -half), (half, -half, -half),
-                      (half, -half, half), (-half, -half, half)]),
-        ((0, 1, 0), [(-half, half, -half), (-half, half, half),
-                     (half, half, half), (half, half, -half)]),
-        ((-1, 0, 0), [(-half, -half, -half), (-half, -half, half),
-                      (-half, half, half), (-half, half, -half)]),
-        ((1, 0, 0), [(half, -half, -half), (half, half, -half),
-                     (half, half, half), (half, -half, half)]),
-        ((0, 0, -1), [(-half, -half, -half), (-half, half, -half),
-                      (half, half, -half), (half, -half, -half)]),
-        ((0, 0, 1), [(-half, -half, half), (half, -half, half),
-                     (half, half, half), (-half, half, half)]),
+        # Front (−Y)
+        ((0, -1, 0), [(-hx, -hy, -hz), (hx, -hy, -hz),
+                      (hx, -hy,  hz), (-hx, -hy,  hz)]),
+
+        # Back (+Y)
+        ((0, 1, 0), [(-hx, hy, -hz), (-hx, hy,  hz),
+                     (hx, hy,  hz), (hx, hy, -hz)]),
+
+        # Left (−X)
+        ((-1, 0, 0), [(-hx, -hy, -hz), (-hx, -hy,  hz),
+                      (-hx,  hy,  hz), (-hx,  hy, -hz)]),
+
+        # Right (+X)
+        ((1, 0, 0), [(hx, -hy, -hz), (hx,  hy, -hz),
+                     (hx,  hy,  hz), (hx, -hy,  hz)]),
+
+        # Bottom (−Z)
+        ((0, 0, -1), [(-hx, -hy, -hz), (-hx,  hy, -hz),
+                      (hx,  hy, -hz), (hx, -hy, -hz)]),
+
+        # Top (+Z)
+        ((0, 0, 1), [(-hx, -hy, hz), (hx, -hy, hz),
+                     (hx,  hy, hz), (-hx,  hy, hz)]),
     ]
 
     for n, verts in faces:
@@ -39,6 +53,7 @@ def create_cube(size=1.0):
             normal.addData3(*n)
 
     tris = GeomTriangles(Geom.UHStatic)
+
     for i in range(0, 24, 4):
         tris.addVertices(i, i + 1, i + 2)
         tris.addVertices(i, i + 2, i + 3)
@@ -46,6 +61,7 @@ def create_cube(size=1.0):
     geom = Geom(vdata)
     geom.addPrimitive(tris)
 
-    node = GeomNode("cube")
+    node = GeomNode("box")
     node.addGeom(geom)
+
     return NodePath(node)
