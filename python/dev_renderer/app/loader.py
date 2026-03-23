@@ -1,5 +1,6 @@
+from panda3d.core import NodePath
 from scene.primitives import create_box
-from utils.helpers import color_from_id
+import utils.helpers as BoxUtils
 
 def spawn_box(render, box_data, box_specs):
 
@@ -11,25 +12,28 @@ def spawn_box(render, box_data, box_specs):
     y = box_data["y"] + height / 2
     z = box_data["z"] + depth / 2
 
+    group = NodePath(f"box_{box_data['id']}")
+    group.setPos(x, y, z)                         # IMPORTANT: Panda3D positions from CENTER, not corner
+    group.reparentTo(render)
+
     # Main Box
     box = create_box(width, height, depth)
-    
-    # IMPORTANT: Panda3D positions from CENTER, not corner
-    box.setPos(x, y, z)
-    box.setColor(color_from_id(box_data["id"]))
-    box.reparentTo(render)
+    box.setColor(BoxUtils.color_from_id(box_data["id"]))
+    box.reparentTo(group)
 
     # Outline
     outline = create_box(width, height, depth)
-    outline.setPos(x, y, z)
     outline.setScale(1.001, 1.001, 1.001)
     outline.setRenderModeWireframe()
+    outline.setRenderModeThickness(2)
     outline.setLightOff()
     outline.setColor(0, 0, 0, 1)
     outline.setDepthWrite(False)
-    outline.reparentTo(render)
+    outline.reparentTo(group)
 
-    return box
+    BoxUtils.attach_labels_to_box_faces(group, box_data["id"], width, height, depth)
+
+    return group
 
 def load_boxes(render, boxes, box_specs):
     nodes = []

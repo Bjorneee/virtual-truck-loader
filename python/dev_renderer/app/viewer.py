@@ -30,10 +30,14 @@ class SimpleSceneViewer(ShowBase):
         setup_lighting(self.render)
 
         ground = create_ground_plane(GROUND_SIZE)
-        ground.reparentTo(self.render)
+        ground.setHpr(0, -90, 0)  # make X-Z ground plane
+        ground.setPos(0, 0, 0)
         ground.setColor(0.32, 0.33, 0.35, 1.0)
+        ground.reparentTo(self.render)
 
         grid = create_grid(GRID_SIZE, GRID_STEP)
+        grid.setHpr(0, -90, 0)
+        grid.setPos(0, 0.001, 0)
         grid.reparentTo(self.render)
 
         self.camera_controller = OrbitCameraController(

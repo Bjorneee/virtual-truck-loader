@@ -1,5 +1,5 @@
 from math import cos, radians, sin
-from panda3d.core import Point3
+from panda3d.core import Point3, Vec3
 from direct.task import Task
 
 from vconfig import (
@@ -81,7 +81,7 @@ class OrbitCameraController:
             self.mouse_last = current
 
             if self.rotating:
-                self.cam_yaw -= dx * 120.0
+                self.cam_yaw += dx * 120.0
                 self.cam_pitch += dy * 90.0
                 self.cam_pitch = max(
                     self.min_pitch,
@@ -90,6 +90,7 @@ class OrbitCameraController:
 
             elif self.panning:
                 pan_speed = self.cam_distance * 0.0035
+
                 cam_right = self.camera.getQuat(self.render).getRight()
                 cam_up = self.camera.getQuat(self.render).getUp()
 
@@ -105,9 +106,13 @@ class OrbitCameraController:
         yaw_rad = radians(self.cam_yaw)
         pitch_rad = radians(self.cam_pitch)
 
+        # Y-up orbit:
+        # x = horizontal left/right
+        # y = vertical
+        # z = depth forward/back
         x = self.target.x + self.cam_distance * cos(pitch_rad) * sin(yaw_rad)
-        y = self.target.y - self.cam_distance * cos(pitch_rad) * cos(yaw_rad)
-        z = self.target.z + self.cam_distance * sin(pitch_rad)
+        y = self.target.y + self.cam_distance * sin(pitch_rad)
+        z = self.target.z - self.cam_distance * cos(pitch_rad) * cos(yaw_rad)
 
         self.camera.setPos(x, y, z)
-        self.camera.lookAt(self.target)
+        self.camera.lookAt(self.target, Vec3(0, 1, 0))   # Y is up
