@@ -66,7 +66,7 @@ virtual-truck-loader/
 ├── unity/        # Unity frontend (3D UI, interaction, visualization)
 ├── python/       # FastAPI backend (packing algorithm + API endpoints)
 ├── database/     # Likely data storage / schemas (not heavily used yet)
-├── docs/         # Documentation (API reference, design notes)
+├── docs/         # Documentation (API reference, design notes)\
 ├── tools/        # Utility scripts / helpers
 ├── README.md
 
