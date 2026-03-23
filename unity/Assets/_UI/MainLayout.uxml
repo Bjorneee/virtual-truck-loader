@@ -6,6 +6,7 @@
             <ui:Button text="📂 File" name="BtnFile" class="toolbar-button" />
             <ui:Button text="➕ Add" name="BtnAddMenu" class="toolbar-button" />
             <ui:Button text="📥 Load" name="BtnLoad" class="toolbar-button" />
+            <ui:Button text="📦 Pack" name="BtnSort" selectable="true" double-click-selects-word="false" triple-click-selects-line="false" class="toolbar-button" />
             <ui:Button text="👁️ View" name="BtnView" class="toolbar-button" />
             <ui:Button text="⚙️ Settings" name="BtnSettings" class="toolbar-button" />
         </ui:VisualElement>

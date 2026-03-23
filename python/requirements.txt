@@ -1,9 +1,11 @@
 # --- Core API ---
-flask           # Serves HTTP API to Unity
-flask-cors      # Handles corss-origin issues (web UI)
+fastapi         # Serves HTTP API to Unity
+uvicorn
+python-dotenv
 
 # --- Data Models ---
 pydantic>=2     # Data validation & schemas for request/response
+pydantic-settings
 
 # --- Math / Packing ---
 numpy           # Core math / geometry operations

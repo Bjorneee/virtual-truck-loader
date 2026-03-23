@@ -4,6 +4,7 @@ using System.Collections.Generic;
 [System.Serializable]
 public class CargoItem
 {
+    public string Id;
     public string Name;
     public float Length;
     public float Width;
@@ -16,6 +17,7 @@ public class CargoItem
 
     public CargoItem(string name, float l, float w, float h, float weight, bool stackable, string groupName)
     {
+        Id = System.Guid.NewGuid().ToString();
         Name = name;
         Length = l;
         Width = w;
