@@ -11,11 +11,19 @@ using Debug = UnityEngine.Debug;
 public class PackingBackendClient : MonoBehaviour
 {
     [Header("Server")]
-    [SerializeField] private string baseUrl = "http://127.0.0.1:8000";
-    [SerializeField] private string workingDirectory = ""; // e.g. C:/Projects/VTL
+    [SerializeField] private string baseUrl = "http://127.0.0.1:8000/";
+    [SerializeField] private string workingDirectory; // e.g. C:/Projects/VTL
     [SerializeField] private bool autoStartServer = true;
 
     private Process _serverProcess;
+
+    private void Awake()
+    {
+        workingDirectory = Path.GetFullPath(
+            Path.Combine(Application.dataPath, "../../"));
+
+        Debug.Log("Resolved working directory: " + workingDirectory);
+    }
 
     private void Start()
     {
@@ -33,6 +41,8 @@ public class PackingBackendClient : MonoBehaviour
 
     public void StartBackendServer()
     {
+        Debug.Log("Starting local server...");
+        Debug.Log("Current working directory: " + workingDirectory);
         if (_serverProcess != null && !_serverProcess.HasExited)
         {
             Debug.Log("Backend server already running.");
@@ -72,6 +82,8 @@ public class PackingBackendClient : MonoBehaviour
             _serverProcess.BeginErrorReadLine();
 
             Debug.Log("Started FastAPI backend process.");
+            Debug.Log("Args: " + _serverProcess.StartInfo.Arguments);
+            Debug.Log("Dir: " + _serverProcess.StartInfo.WorkingDirectory);
         }
         catch (Exception ex)
         {

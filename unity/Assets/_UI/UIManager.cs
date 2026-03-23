@@ -1,12 +1,14 @@
 using System.Collections.Generic; // Required for Lists
+using System.Diagnostics;
+using System.IO; // Required for writing files
 using UnityEngine;
 using UnityEngine.UIElements;
-using System.IO; // Required for writing files
-
-[SerializeField] private PackingBackendClient backendClient;
+using Debug = UnityEngine.Debug;
 
 public class UIManager : MonoBehaviour
 {
+    [SerializeField] private PackingBackendClient backendClient;
+
     public static UIManager Instance;
 
     private void Awake()
@@ -84,6 +86,7 @@ public class UIManager : MonoBehaviour
     public float TruckL => _truckL != null ? _truckL.value : 1f;
     public float TruckW => _truckW != null ? _truckW.value : 1f;
     public float TruckH => _truckH != null ? _truckH.value : 1f;
+
 
     private void OnEnable()
     {
@@ -254,7 +257,7 @@ public class UIManager : MonoBehaviour
 
         // 4. Add to list and 3D world
         _inventory.Add(newItem);
-        SpawnVisualBox(newItem);
+        //SpawnVisualBox(newItem);
 
         // 5. THE AUTO-DESELECT FIX
         // Instantly clear the selection so the Right Panel resets to "1, 1, 1" for the next box!
@@ -268,17 +271,23 @@ public class UIManager : MonoBehaviour
 
     private void SpawnVisualBox(CargoItem item)
     {
-        // NEW: Spawn exactly in the middle of the truck, near the ceiling
-        Vector3 safeSpawnPos = new Vector3(0, TruckH - (item.Height / 2f), 0);
-
-        // Replace the old Instantiate line with this one:
+        Vector3 safeSpawnPos = Vector3.zero;
         GameObject newBox = Instantiate(boxPrefab, safeSpawnPos, Quaternion.identity);
 
         newBox.transform.localScale = new Vector3(item.Length, item.Height, item.Width);
+        newBox.transform.position = item.Position;
         newBox.GetComponent<Renderer>().material.color = item.DisplayColor;
 
+        Rigidbody rb = newBox.GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            Destroy(rb);
+        }
+
         _visualBoxes.Add(newBox);
+        _itemObjects[item.Id] = newBox;
     }
+
     private void OnSaveClicked()
     {
         //Save current box positions back into inventory data
@@ -415,7 +424,6 @@ public class UIManager : MonoBehaviour
             height = item.Height,
             depth = item.Length,
             weight = item.Weight,
-            rotatable = item.Stackable,
             priority = 0f
         });
 
@@ -457,51 +465,64 @@ public class UIManager : MonoBehaviour
 
     }
 
+
     private void OnPackSuccess(PackingResponse response)
-{
-    if (response == null)
     {
-        Debug.LogError("Pack response was null.");
-        return;
-    }
-
-    if (response.placed != null)
-    {
-        foreach (var placed in response.placed)
+        if (response == null)
         {
-            if (_itemObjects.TryGetValue(placed.id, out GameObject box) && box != null)
-            {
-                Vector3 newPos = new Vector3(placed.x, placed.y, placed.z);
-                box.transform.position = newPos;
+            Debug.LogError("Pack response was null.");
+            return;
+        }
 
+        if (response.placed != null)
+        {
+            SetAppMode(false);
+
+            foreach (var placed in response.placed)
+            {
                 CargoItem item = _inventory.Find(i => i.Id == placed.id);
-                if (item != null)
-                    item.Position = newPos;
+                if (item == null)
+                {
+                    Debug.LogWarning($"No CargoItem found for id {placed.id}");
+                    continue;
+                }
+
+                Vector3 newPos = new Vector3(
+                    placed.x + item.Width / 2f,
+                    placed.y + item.Height / 2f,
+                    placed.z + item.Length / 2f
+                );
+
+                item.Position = newPos;
+
+                if (_itemObjects.TryGetValue(placed.id, out GameObject existingBox) && existingBox != null)
+                {
+                    existingBox.transform.position = newPos;
+                }
+                else
+                {
+                    SpawnVisualBox(item);
+                }
 
                 Debug.Log($"Placed {placed.id} at {newPos}, rotation={placed.rotation}");
             }
-            else
+        }
+
+        if (response.unplaced != null)
+        {
+            foreach (var unplaced in response.unplaced)
             {
-                Debug.LogWarning($"No spawned box found for id {placed.id}");
+                Debug.LogWarning($"Unplaced box: {unplaced.id}");
             }
         }
+
+        Debug.Log($"Packing complete. Utilization={response.utilization}, runtime_ms={response.runtime_ms}, notes={response.notes}");
     }
 
-    if (response.unplaced != null)
+    private void OnPackError(string error)
     {
-        foreach (var unplaced in response.unplaced)
-        {
-            Debug.LogWarning($"Unplaced box: {unplaced.id}");
-        }
+        Debug.LogError("Packing backend error: " + error);
     }
-
-    Debug.Log($"Packing complete. Utilization={response.utilization}, runtime_ms={response.runtime_ms}, notes={response.notes}");
-}
-
-private void OnPackError(string error)
-{
-    Debug.LogError("Packing backend error: " + error);
-}
 
 
     private void OnLoadClicked()
@@ -532,7 +553,7 @@ private void OnPackError(string error)
         {
             // Add to data list
             _inventory.Add(item);
-            SpawnVisualBox(item);
+            //SpawnVisualBox(item);
 
             Debug.Log($"{item.Name} loaded at position {item.Position}");
         }
@@ -608,7 +629,7 @@ private void OnPackError(string error)
         CargoItem randomItem = new CargoItem($"AutoBox {_inventory.Count + 1}", rL, rW, rH, 10, true, "Standard");
 
         _inventory.Add(randomItem);
-        SpawnVisualBox(randomItem);
+        //SpawnVisualBox(randomItem);
         _itemListView.RefreshItems();
 
         Debug.Log("Added Random Test Box");
@@ -788,9 +809,9 @@ private void OnPackError(string error)
         }
 
         // Start the fake waiting process
-        StartCoroutine(MockAPICallRoutine());
+        StartCoroutine(backendClient.SendPackRequest(BuildPackingRequest(), OnPackSuccess, OnPackError));
     }
-
+    /*
     private System.Collections.IEnumerator MockAPICallRoutine()
     {
         _loadingOverlay.style.display = DisplayStyle.Flex;
@@ -834,7 +855,7 @@ private void OnPackError(string error)
         }
 
         Debug.Log("Boxes snapped to final positions!");
-    }
+    } */
     // True = Show List, False = Show 3D Truck
     public void SetAppMode(bool isInventoryMode)
     {
