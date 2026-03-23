@@ -13,7 +13,7 @@ from scene.lighting import setup_lighting
 from scene.grid import create_grid
 from scene.ground import create_ground_plane
 
-from .loader import load_boxes
+from .loader import load_boxes, spawn_truck
 from .api_client import fetch_packing_result
 from utils.json_loader import load_payload_from_file
 
@@ -47,6 +47,7 @@ class SimpleSceneViewer(ShowBase):
         )
 
         self.box_nodes = []
+        self.truck_nodes = []
         self.load_from_api()
 
     def _setup_window(self):
@@ -68,8 +69,10 @@ class SimpleSceneViewer(ShowBase):
             result = fetch_packing_result("http://127.0.0.1:8000/pack", payload)
             self.clear_load()
 
+            self.truck_nodes = spawn_truck(self.render, payload["truck"])
             self.box_nodes = load_boxes(self.render, result["placed"], payload["boxes"])
 
+            print("Truck: ", payload["truck"].get("id"))
             print("Utilization: ", result.get("utilization"))
             print("Notes: ", result.get("notes"))
         

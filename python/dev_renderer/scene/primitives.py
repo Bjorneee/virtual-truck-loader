@@ -65,3 +65,58 @@ def create_box(width, height, depth):
     node.addGeom(geom)
 
     return NodePath(node)
+
+
+from panda3d.core import (
+    Geom,
+    GeomNode,
+    GeomLines,
+    GeomVertexData,
+    GeomVertexFormat,
+    GeomVertexWriter,
+    NodePath,
+)
+
+
+def create_box_outline(width, height, depth):
+    hx = width / 2.0
+    hy = height / 2.0
+    hz = depth / 2.0
+
+    fmt = GeomVertexFormat.getV3()
+    vdata = GeomVertexData("box_outline", fmt, Geom.UHStatic)
+    vertex = GeomVertexWriter(vdata, "vertex")
+
+    # 8 corners of the box
+    corners = [
+        (-hx, -hy, -hz),
+        ( hx, -hy, -hz),
+        ( hx,  hy, -hz),
+        (-hx,  hy, -hz),
+        (-hx, -hy,  hz),
+        ( hx, -hy,  hz),
+        ( hx,  hy,  hz),
+        (-hx,  hy,  hz),
+    ]
+
+    for c in corners:
+        vertex.addData3(*c)
+
+    lines = GeomLines(Geom.UHStatic)
+
+    edges = [
+        (0,1),(1,2),(2,3),(3,0),  # bottom
+        (4,5),(5,6),(6,7),(7,4),  # top
+        (0,4),(1,5),(2,6),(3,7)   # verticals
+    ]
+
+    for a, b in edges:
+        lines.addVertices(a, b)
+
+    geom = Geom(vdata)
+    geom.addPrimitive(lines)
+
+    node = GeomNode("box_outline")
+    node.addGeom(geom)
+
+    return NodePath(node)

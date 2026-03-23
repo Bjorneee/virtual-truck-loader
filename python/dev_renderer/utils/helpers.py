@@ -15,6 +15,9 @@ def create_face_label(text, scale=0.2):
     label = NodePath(text_node.generate())
     label.setScale(scale)
     label.setLightOff()
+    label.setTwoSided(True)
+    label.setDepthWrite(False)
+    label.setBin("fixed", 0)
     return label
 
 
