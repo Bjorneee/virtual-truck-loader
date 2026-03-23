@@ -1,0 +1,25 @@
+# -----------------------------
+# Core backend
+# -----------------------------
+fastapi
+uvicorn[standard]
+pydantic>=2
+pydantic-settings
+python-dotenv
+
+# -----------------------------
+# Data processing
+# -----------------------------
+numpy
+pandas
+scipy
+
+# -----------------------------
+# Optimization
+# -----------------------------
+ortools
+
+# -----------------------------
+# Panda3D Renderer
+# -----------------------------
+panda3d

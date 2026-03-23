@@ -5,6 +5,12 @@ using System.IO; // Required for writing files
 
 public class UIManager : MonoBehaviour
 {
+    public static UIManager Instance;
+
+    private void Awake()
+    {
+        Instance = this; // Set the instance when the game starts
+    }
     [Header("Settings")]
     public VisualTreeAsset itemRowTemplate; // The UXML file we just made
     public GameObject boxPrefab;
@@ -16,10 +22,15 @@ public class UIManager : MonoBehaviour
 
     // UI Elements
     private ListView _itemListView;
+
     private Button _btnAdd;
     private FloatField _inputLength;
     private FloatField _inputWidth;
     private FloatField _inputHeight;
+    private FloatField _inputWeight;
+    private Toggle _toggleStackable;
+    private DropdownField _inputGroup;
+
     private Button _btnSave;
     private List<GameObject> _visualBoxes = new List<GameObject>();
     private Button _btnLoad;
@@ -30,6 +41,26 @@ public class UIManager : MonoBehaviour
     //private Dictionary<string, GameObject> _itemToBox = new Dictionary<string, GameObject>();
     private Dictionary<string, GameObject> _itemObjects = new Dictionary<string, GameObject>();
 
+    private Button _btnSettings;
+    private Button _btnCloseSettings;
+    private VisualElement _settingsOverlay;
+
+    private Label _lblWeight;
+    private Label _lblVolume;
+    private CargoItem _currentlySelectedItem = null;
+
+    private Button _btnGenerate;
+    private VisualElement _loadingOverlay;
+
+    private DropdownField _inputAlgorithm;
+    private SliderInt _inputTimeLimit;
+
+    private Button _btnClearList;
+
+    private Button _btnBack;
+
+    private TextField _inputItemName;
+
     [Header("Camera Angles")]
     public Transform mainCamera;
     // We store the Position (Vector3) and Rotation (Vector3) for each angle
@@ -37,10 +68,20 @@ public class UIManager : MonoBehaviour
     public Vector3 topPos, topRot;
     public Vector3 sidePos, sideRot;
     private int _currentViewIndex = 0;
+    public CameraController cameraControl;
+
     // We can add weight/stackable later
+
+    [Header("Truck Settings")]
+    public GameObject truckFloorObject;  // The solid floor
+    public GameObject truckVolumeObject; // The glass walls
 
     // The actual list of data
     private List<CargoItem> _inventory = new List<CargoItem>();
+
+    public float TruckL => _truckL != null ? _truckL.value : 1f;
+    public float TruckW => _truckW != null ? _truckW.value : 1f;
+    public float TruckH => _truckH != null ? _truckH.value : 1f;
 
     private void OnEnable()
     {
@@ -50,6 +91,8 @@ public class UIManager : MonoBehaviour
         _inputLength = root.Q<FloatField>("InputLength");
         _inputWidth = root.Q<FloatField>("InputWidth");
         _inputHeight = root.Q<FloatField>("InputHeight");
+        _inputWeight = root.Q<FloatField>("InputWeight");
+        _toggleStackable = root.Q<Toggle>("ToggleStackable");
         _btnSave = root.Q<Button>("BtnSave");
         _btnLoad = root.Q<Button>("BtnLoad");
         _btnFile = root.Q<Button>("BtnFile");
@@ -60,6 +103,41 @@ public class UIManager : MonoBehaviour
         _truckL = root.Q<FloatField>("TruckL");
         _truckW = root.Q<FloatField>("TruckW");
         _truckH = root.Q<FloatField>("TruckH");
+        _lblWeight = root.Q<Label>("LblWeight");
+        _lblVolume = root.Q<Label>("LblVolume");
+        _inputGroup = root.Q<DropdownField>("InputGroup");
+
+        _btnGenerate = root.Q<Button>("BtnGenerate");
+        _loadingOverlay = root.Q<VisualElement>("LoadingOverlay");
+        if (_btnGenerate != null) _btnGenerate.clicked += OnGenerateClicked;
+
+        _btnSettings = root.Q<Button>("BtnSettings");
+        _btnCloseSettings = root.Q<Button>("BtnCloseSettings");
+        _settingsOverlay = root.Q<VisualElement>("SettingsOverlay");
+
+        _inputAlgorithm = root.Q<DropdownField>("InputAlgorithm");
+        _inputTimeLimit = root.Q<SliderInt>("InputTimeLimit");
+
+        // Listen for typing on all inputs (Using evt => bypasses the strict type error!)
+        if (_inputItemName != null) _inputItemName.RegisterValueChangedCallback(evt => OnInputChanged());
+        if (_inputLength != null) _inputLength.RegisterValueChangedCallback(evt => OnInputChanged());
+        if (_inputWidth != null) _inputWidth.RegisterValueChangedCallback(evt => OnInputChanged());
+        if (_inputHeight != null) _inputHeight.RegisterValueChangedCallback(evt => OnInputChanged());
+        if (_inputWeight != null) _inputWeight.RegisterValueChangedCallback(evt => OnInputChanged());
+        if (_toggleStackable != null) _toggleStackable.RegisterValueChangedCallback(evt => OnInputChanged());
+        if (_inputGroup != null) _inputGroup.RegisterValueChangedCallback(evt => OnInputChanged());
+
+        // Set the panel to "Create Mode" when the app first opens
+        SetRightPanelToCreateMode();
+
+        _btnClearList = root.Q<Button>("BtnClearList");
+        if (_btnClearList != null) _btnClearList.clicked += ClearAll;
+
+        if (_btnSettings != null) _btnSettings.clicked += OpenSettings;
+        if (_btnCloseSettings != null) _btnCloseSettings.clicked += CloseSettings;
+
+        _btnBack = root.Q<Button>("BtnBack");
+        if (_btnBack != null) _btnBack.clicked += OnBackClicked;
 
         // 1. Find the ListView
         _itemListView = root.Q<ListView>("ItemListView");
@@ -79,6 +157,42 @@ public class UIManager : MonoBehaviour
         _truckW.RegisterValueChangedCallback(evt => UpdateTruckSize());
         _truckH.RegisterValueChangedCallback(evt => UpdateTruckSize());
 
+        _itemListView.selectionChanged += OnItemSelected;
+
+        SetAppMode(true); // Start in Inventory Mode
+        UpdateRightPanelState(true);
+
+        // --- DESELECTION FIX ---
+        // Find the background panels
+        var leftPanel = root.Q<VisualElement>("LeftPanel");
+        var rightPanel = root.Q<VisualElement>("RightPanel");
+
+        // Listen for clicks on the Left Panel
+        if (leftPanel != null)
+        {
+            leftPanel.RegisterCallback<PointerDownEvent>(evt =>
+            {
+                // If they clicked the empty background or the empty part of the list
+                var targetName = (evt.target as VisualElement)?.name;
+                if (targetName == "LeftPanel" || targetName == "ItemListView")
+                {
+                    _itemListView.ClearSelection();
+                }
+            });
+        }
+
+        // Listen for clicks on the Right Panel
+        if (rightPanel != null)
+        {
+            rightPanel.RegisterCallback<PointerDownEvent>(evt =>
+            {
+                // If they click the empty background of the right panel
+                if ((evt.target as VisualElement)?.name == "RightPanel")
+                {
+                    _itemListView.ClearSelection();
+                }
+            });
+        }
 
     }
 
@@ -115,40 +229,53 @@ public class UIManager : MonoBehaviour
 
     private void OnAddClicked()
     {
+        // 1. Grab values from the Right Panel
         float l = _inputLength.value;
         float w = _inputWidth.value;
         float h = _inputHeight.value;
+        float weight = _inputWeight.value;
+        bool isStackable = _toggleStackable.value;
+        string group = _inputGroup != null ? _inputGroup.value : "Standard";
 
-        if (l == 0 || w == 0 || h == 0) return;
+        // 2. PROPERLY GRAB THE CUSTOM NAME
+        string itemName = $"Box {_inventory.Count + 1}"; // Default name
+        if (_inputItemName != null && !string.IsNullOrWhiteSpace(_inputItemName.value))
+        {
+            itemName = _inputItemName.value; // Override with user's custom name!
+        }
 
-        // 1. Create the Data Object
-        var newItem = new CargoItem($"Box {_inventory.Count + 1}", l, w, h, 10, true);
-        newItem.Position = spawnLocation.position;
+        // Safety check (Don't spawn invisible boxes)
+        if (l <= 0 || w <= 0 || h <= 0) return;
 
-        // 2. Add to our list
+        // 3. Create the NEW item with the correct name
+        var newItem = new CargoItem(itemName, l, w, h, weight, isStackable, group);
+
+        // 4. Add to list and 3D world
         _inventory.Add(newItem);
-
-        // 3. Refresh the UI
-        _itemListView.RefreshItems();
-
-        // 4. (Still spawn visuals for fun/testing)
         SpawnVisualBox(newItem);
+
+        // 5. THE AUTO-DESELECT FIX
+        // Instantly clear the selection so the Right Panel resets to "1, 1, 1" for the next box!
+        _itemListView.ClearSelection();
+        SetRightPanelToCreateMode();
+
+        // Refresh UI
+        _itemListView.RefreshItems();
+        UpdateMetrics();
     }
 
     private void SpawnVisualBox(CargoItem item)
     {
-        Vector3 spawnPos = item.Position != Vector3.zero ? item.Position : spawnLocation.position;
-        //Vector3 spawnPos = item.Position;
-        //if (spawnPos == Vector3.zero)
-        //    spawnPos = spawnLocation.position;
+        // NEW: Spawn exactly in the middle of the truck, near the ceiling
+        Vector3 safeSpawnPos = new Vector3(0, TruckH - (item.Height / 2f), 0);
 
-        GameObject newBox = Instantiate(boxPrefab, spawnPos, Quaternion.identity);
+        // Replace the old Instantiate line with this one:
+        GameObject newBox = Instantiate(boxPrefab, safeSpawnPos, Quaternion.identity);
+
         newBox.transform.localScale = new Vector3(item.Length, item.Height, item.Width);
         newBox.GetComponent<Renderer>().material.color = item.DisplayColor;
 
         _visualBoxes.Add(newBox);
-        _itemObjects[item.Id] = newBox;//itemObjects or _itemToBox
-
     }
     private void OnSaveClicked()
     {
@@ -168,6 +295,8 @@ public class UIManager : MonoBehaviour
         data.TruckLength = _truckL.value;
         data.TruckWidth = _truckW.value;
         data.TruckHeight = _truckH.value;
+        data.AlgorithmPreference = _inputAlgorithm != null ? _inputAlgorithm.value : "Standard";
+        data.MaxCalculationTime = _inputTimeLimit != null ? _inputTimeLimit.value : 10;
 
         // 2. Convert to JSON text
         string json = JsonUtility.ToJson(data, true); // 'true' makes it pretty/readable
@@ -266,6 +395,7 @@ public class UIManager : MonoBehaviour
     }
     private void ClearAll()
     {
+        _itemListView.ClearSelection();
         // 1. Destroy all 3D objects
         foreach (GameObject box in _visualBoxes)
         {
@@ -318,20 +448,32 @@ public class UIManager : MonoBehaviour
         _itemListView.RefreshItems();
 
         Debug.Log($"<color=green>LOADED:</color> {loadedData.items.Count} items.");
+        UpdateMetrics();
     }
     private void UpdateTruckSize()
     {
         float l = _truckL.value;
         float w = _truckW.value;
-        // Height doesn't change the floor visually, but saves for data
+        float h = _truckH.value; // Now we use H!
 
-        if (l < 1) l = 1; // Prevent invisible trucks
+        if (l < 1) l = 1;
         if (w < 1) w = 1;
+        if (h < 1) h = 1;
 
-        // Update the 3D Object
-        // Note: Unity Plane scale 1 = 10 meters, Cube scale 1 = 1 meter.
-        // Assuming your TruckBed is a Cube:
-        truckBedObject.transform.localScale = new Vector3(l, 0.1f, w);
+        // 1. Scale the Solid Floor (Always thin)
+        truckFloorObject.transform.localScale = new Vector3(l, 0.1f, w);
+        // Keep the floor at Y = 0
+        truckFloorObject.transform.position = new Vector3(0, 0, 0);
+
+        // 2. Scale the Glass Volume (Uses Height)
+        if (truckVolumeObject != null)
+        {
+            truckVolumeObject.transform.localScale = new Vector3(l, h, w);
+
+            // Unity scales from the center. If height is 10, it goes 5 up and 5 down.
+            // We move it up by (Height / 2) so the bottom of the glass touches the floor.
+            truckVolumeObject.transform.position = new Vector3(0, h / 2f, 0);
+        }
     }
     private void RemoveItem(CargoItem itemToRemove)
     {
@@ -353,6 +495,7 @@ public class UIManager : MonoBehaviour
         _itemListView.RefreshItems();
 
         Debug.Log($"Removed {itemToRemove.Name}");
+        UpdateMetrics();
     }
     // 1. FILE BUTTON: Acts as "New Scene / Reset"
     private void OnFileClicked()
@@ -369,7 +512,7 @@ public class UIManager : MonoBehaviour
         float rW = Mathf.Round(Random.Range(1f, 3f) * 10f) / 10f;
         float rH = Mathf.Round(Random.Range(1f, 3f) * 10f) / 10f;
 
-        CargoItem randomItem = new CargoItem($"AutoBox {_inventory.Count + 1}", rL, rW, rH, 10, true);
+        CargoItem randomItem = new CargoItem($"AutoBox {_inventory.Count + 1}", rL, rW, rH, 10, true, "Standard");
 
         _inventory.Add(randomItem);
         SpawnVisualBox(randomItem);
@@ -381,7 +524,7 @@ public class UIManager : MonoBehaviour
     // 3. VIEW BUTTON: Cycles Camera Angles
     private void OnViewClicked()
     {
-        if (mainCamera == null) return;
+        if (cameraControl == null) return;
 
         _currentViewIndex++;
         if (_currentViewIndex > 2) _currentViewIndex = 0;
@@ -389,20 +532,279 @@ public class UIManager : MonoBehaviour
         switch (_currentViewIndex)
         {
             case 0: // ISOMETRIC
-                SetCamera(isoPos, isoRot);
+                cameraControl.SetViewAngle(new Vector3(35, 45, 0)); // Standard Iso
                 break;
             case 1: // TOP DOWN
-                SetCamera(topPos, topRot);
+                cameraControl.SetViewAngle(new Vector3(90, 0, 0));
                 break;
             case 2: // SIDE VIEW
-                SetCamera(sidePos, sideRot);
+                cameraControl.SetViewAngle(new Vector3(0, -90, 0));
                 break;
+        }
+
+        Debug.Log("Switched View Index: " + _currentViewIndex);
+    }
+    private void UpdateMetrics()
+    {
+        // 1. Calculate Truck Volume
+        float truckL = _truckL.value;
+        float truckW = _truckW.value;
+        float truckH = _truckH.value;
+
+        // Prevent dividing by zero if inputs are empty
+        if (truckL <= 0 || truckW <= 0 || truckH <= 0) return;
+
+        float maxVolume = truckL * truckW * truckH;
+
+        // 2. Tally up the Boxes
+        float currentVolume = 0f;
+        float currentWeight = 0f;
+
+        foreach (var item in _inventory)
+        {
+            currentVolume += (item.Length * item.Width * item.Height);
+            currentWeight += item.Weight;
+        }
+
+        // 3. Calculate Percentage
+        float fillPercentage = (currentVolume / maxVolume) * 100f;
+
+        // 4. Update the UI Text (F1 formats it to 1 decimal place, e.g., "45.2")
+        _lblWeight.text = $"Total Weight: {currentWeight:F1} kg";
+        _lblVolume.text = $"Volume Used: {fillPercentage:F1}%";
+
+        // Bonus: Make the text turn RED if you overfill the truck (>100%)
+        if (fillPercentage > 100f)
+            _lblVolume.style.color = Color.red;
+        else
+            _lblVolume.style.color = Color.white;
+    }
+    // This runs automatically whenever a row is clicked
+    private void OnItemSelected(System.Collections.Generic.IEnumerable<object> selectedItems)
+    {
+        // 1. RESET COLORS: Turn all boxes back to their normal colors first
+        for (int i = 0; i < _visualBoxes.Count; i++)
+        {
+            if (_visualBoxes[i] != null)
+            {
+                _visualBoxes[i].GetComponent<Renderer>().material.color = _inventory[i].DisplayColor;
+            }
+        }
+
+        // 2. CHECK SELECTION: Did we actually click something?
+        var enumerator = selectedItems.GetEnumerator();
+
+        // IF THE USER DESELECTED (Clicked empty space)
+        if (!enumerator.MoveNext())
+        {
+            _currentlySelectedItem = null;
+            SetRightPanelToCreateMode(); // Snap back to Create Mode
+            return;
+        }
+
+        // IF THE USER CLICKED A BOX
+        CargoItem selectedData = (CargoItem)enumerator.Current;
+        _currentlySelectedItem = selectedData;
+
+        // Turn the 3D box Cyan
+        int selectedIndex = _inventory.IndexOf(selectedData);
+        if (selectedIndex >= 0 && selectedIndex < _visualBoxes.Count)
+        {
+            _visualBoxes[selectedIndex].GetComponent<Renderer>().material.color = Color.cyan;
+        }
+
+        // Push data to Right Panel WITHOUT triggering typing events
+        if (_inputItemName != null) _inputItemName.SetValueWithoutNotify(selectedData.Name);
+        _inputLength.SetValueWithoutNotify(selectedData.Length);
+        _inputWidth.SetValueWithoutNotify(selectedData.Width);
+        _inputHeight.SetValueWithoutNotify(selectedData.Height);
+        _inputWeight.SetValueWithoutNotify(selectedData.Weight);
+        _toggleStackable.SetValueWithoutNotify(selectedData.IsStackable);
+        if (_inputGroup != null) _inputGroup.SetValueWithoutNotify(selectedData.GroupName);
+
+        Debug.Log($"Selected {selectedData.Name} in the Editor!");
+        UpdateRightPanelState(true);
+    }
+
+    private void OnInputChanged()
+    {
+        // 1. If we are in "Create Mode" (no box selected), do nothing. 
+        if (_currentlySelectedItem == null) return;
+
+        // 2. We are in "Edit Mode". Update the Data Object with the new numbers/text!
+        if (_inputItemName != null) _currentlySelectedItem.Name = _inputItemName.value;
+        _currentlySelectedItem.Length = _inputLength.value;
+        _currentlySelectedItem.Width = _inputWidth.value;
+        _currentlySelectedItem.Height = _inputHeight.value;
+        _currentlySelectedItem.Weight = _inputWeight.value;
+        _currentlySelectedItem.IsStackable = _toggleStackable.value;
+
+        if (_inputGroup != null)
+        {
+            _currentlySelectedItem.GroupName = _inputGroup.value;
+            _currentlySelectedItem.DisplayColor = CargoItem.GetColorForGroup(_inputGroup.value);
+        }
+
+        // 3. Find which 3D box this is
+        int index = _inventory.IndexOf(_currentlySelectedItem);
+
+        // 4. Update the 3D Box instantly!
+        if (index >= 0 && index < _visualBoxes.Count)
+        {
+            GameObject boxToResize = _visualBoxes[index];
+            boxToResize.transform.localScale = new Vector3(_currentlySelectedItem.Length, _currentlySelectedItem.Height, _currentlySelectedItem.Width);
+            boxToResize.GetComponent<Renderer>().material.color = _currentlySelectedItem.DisplayColor;
+        }
+
+        // 5. Update the UI text in the Left Panel list and bottom metrics
+        _itemListView.RefreshItems();
+        UpdateMetrics();
+    }
+    public void SetSelectionFrom3D(GameObject clickedBox)
+    {
+        // Find which box this is in our visual list
+        int index = _visualBoxes.IndexOf(clickedBox);
+        if (index != -1)
+        {
+            // This physically selects the row in the Left Panel!
+            // Which automatically triggers OnItemSelected and updates the Right Panel.
+            _itemListView.SetSelection(index);
         }
     }
 
-    private void SetCamera(Vector3 pos, Vector3 rot)
+    public void ClearSelectionFrom3D()
     {
-        mainCamera.position = pos;
-        mainCamera.rotation = Quaternion.Euler(rot);
+        _itemListView.ClearSelection();
+    }
+    private void OpenSettings()
+    {
+        _settingsOverlay.style.display = DisplayStyle.Flex;
+    }
+
+    private void CloseSettings()
+    {
+        _settingsOverlay.style.display = DisplayStyle.None;
+    }
+    private void OnGenerateClicked()
+    {
+        // Prevent clicking if there are no boxes
+        if (_inventory.Count == 0)
+        {
+            Debug.LogWarning("Cannot generate: Truck is empty!");
+            return;
+        }
+
+        // Start the fake waiting process
+        StartCoroutine(MockAPICallRoutine());
+    }
+
+    private System.Collections.IEnumerator MockAPICallRoutine()
+    {
+        _loadingOverlay.style.display = DisplayStyle.Flex;
+
+        // 1. Pretend we are sending the JSON to Python
+        OnSaveClicked(); // This guarantees our JSON is updated before sending
+
+        yield return new WaitForSeconds(3f);
+
+        SetAppMode(false); // Switch to 3D Viewer Mode!
+
+        _loadingOverlay.style.display = DisplayStyle.None;
+
+        Debug.Log("Simulating Python Response (Coordinates Received!)...");
+
+        // 2. FAKE RESULT PLACEMENT
+        // We will place them in a neat diagonal line to prove we can control them via code
+        float currentZ = 0f;
+        float currentX = 0f;
+
+        for (int i = 0; i < _visualBoxes.Count; i++)
+        {
+            GameObject box = _visualBoxes[i];
+            CargoItem item = _inventory[i];
+
+            // A. Turn off gravity so they don't fall over. 
+            // In a finished loadout, boxes are static!
+            Rigidbody rb = box.GetComponent<Rigidbody>();
+            if (rb != null)
+            {
+                Destroy(rb); // Remove physics entirely for the result view
+            }
+
+            // B. Move the box to its new "Calculated" coordinate
+            // We add Height/2 because Unity objects spawn from their center, not the bottom
+            box.transform.position = new Vector3(currentX, item.Height / 2f, currentZ);
+
+            // C. Increment the coordinates so the next box goes next to it
+            currentZ += item.Length + 0.2f; // Add a tiny gap
+            currentX += item.Width + 0.2f;
+        }
+
+        Debug.Log("Boxes snapped to final positions!");
+    }
+    // True = Show List, False = Show 3D Truck
+    public void SetAppMode(bool isInventoryMode)
+    {
+        var leftPanel = GetComponent<UIDocument>().rootVisualElement.Q<VisualElement>("LeftPanel");
+        var centerView = GetComponent<UIDocument>().rootVisualElement.Q<VisualElement>("CenterView");
+
+        if (isInventoryMode)
+        {
+            leftPanel.style.display = DisplayStyle.Flex; // Show List
+            centerView.style.display = DisplayStyle.None; // Hide Truck View Container
+        }
+        else
+        {
+            leftPanel.style.display = DisplayStyle.None; // Hide List
+            centerView.style.display = DisplayStyle.Flex; // Show Truck View Container
+
+        }
+    }
+    private void OnBackClicked()
+    {
+        // 1. Switch back to Inventory Mode (Shows List, hides Center View)
+        SetAppMode(true);
+
+        // 2. Clean up the 3D scene (Remove the "Result" boxes)
+        foreach (GameObject box in _visualBoxes) Destroy(box);
+        _visualBoxes.Clear();
+
+        // 3. Respawn the original inventory boxes so the user can edit them again
+        foreach (var item in _inventory) SpawnVisualBox(item);
+
+        Debug.Log("Returned to Editor Mode.");
+    }
+    private void UpdateRightPanelState(bool isEnabled)
+    {
+        // Enable/Disable the inputs
+        _inputLength.SetEnabled(isEnabled);
+        _inputWidth.SetEnabled(isEnabled);
+        _inputHeight.SetEnabled(isEnabled);
+        _inputWeight.SetEnabled(isEnabled);
+        _inputGroup.SetEnabled(isEnabled);
+        _toggleStackable.SetEnabled(isEnabled);
+
+        // If disabled, clear the numbers so it looks "empty"
+        if (!isEnabled)
+        {
+            _inputLength.SetValueWithoutNotify(0);
+            _inputWidth.SetValueWithoutNotify(0);
+            _inputHeight.SetValueWithoutNotify(0);
+            _inputWeight.SetValueWithoutNotify(0);
+            _inputGroup.SetValueWithoutNotify("Standard");
+            _toggleStackable.SetValueWithoutNotify(false);
+        }
+    }
+    private void SetRightPanelToCreateMode()
+    {
+        // Clear all inputs back to defaults WITHOUT triggering OnInputChanged
+        if (_inputItemName != null) _inputItemName.SetValueWithoutNotify(""); 
+        if (_inputLength != null) _inputLength.SetValueWithoutNotify(1f);
+        if (_inputWidth != null) _inputWidth.SetValueWithoutNotify(1f);
+        if (_inputHeight != null) _inputHeight.SetValueWithoutNotify(1f);
+        if (_inputWeight != null) _inputWeight.SetValueWithoutNotify(1f);
+        if (_toggleStackable != null) _toggleStackable.SetValueWithoutNotify(true);
+        if (_inputGroup != null) _inputGroup.SetValueWithoutNotify("Standard");
+
     }
 }

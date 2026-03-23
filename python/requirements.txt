@@ -14,8 +14,3 @@ numpy           # Core math / geometry operations
 pandas          # Data manipulation for tabular data
 scipy           # Optimization helpers
 ortools         # Advanced bin packing / optimization & constraint solving
-
-# --- Development ---
-pytest
-black
-ruff
