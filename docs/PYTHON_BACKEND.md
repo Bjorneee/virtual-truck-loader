@@ -5,36 +5,30 @@ The Python backend provides:
 - A REST API for Unity
 - Data validation
 - Packing/optimization logic
-- Lightweight data processing
+- Developer-Only Testing Simulation
 
 ## Folder Structure
 python/  
 ├─ api/  
 │ ├─ main.py  
 │ ├─ routes.py  
-│ ├─ logging.py  
 │ ├─ config.py  
-│ ├─ schemas.py  
-│ └─ deps.py    
+│ └─ schemas.py  
+├─ dev_renderer/  
 ├─ services/  
 │ └─ packing_services.py  
 ├─ vtl_core/  
-│ ├─ __init__.py  
 │ ├─ domain/  
-│ │ ├─ errors.py  
 │ │ └─ models.py  
 │ ├─ optimization/  
 │ ├─ packing/  
-│ │ ├─ constraints.py  
 │ │ ├─ heuristics.py  
-│ │ ├─ postprocess.py  
-│ │ └─ scoring.py  
+│ │ └─ processing.py  
 │ └─ utils.py  
 ├─ tests/  
 │ ├─ test_load.json  
-│ ├─ test_optimization.py  
-│ └─ test_packing.py  
-├─ __init__.py  
+│ ├─ large_load.json  
+│ └─ axis_test.json  
 └─ requirements.txt  
 
 ## API Entrypoint
@@ -52,7 +46,7 @@ python/
 - `PackingResponse`
 
 ## Packing Logic
-(`vtl_core/packing/heuristics.py`)
+(`vtl_core/packing/processing.py`)
 - Receives validated models
 - Computes placements
 - Returns response model
@@ -101,18 +95,11 @@ Balance Warning      0.20                   (0.20⋅count)
 ## How To Run
 cd python
 
-python -m venv .venv
-
-source .venv/bin/activate
-
 pip install -r requirements.txt
 
 python api/main.py
 
-## How To Test
-pytest
-
 ## How To Extend
-- Add new heuristic → `vtl_core/packing/`
-- Register new heuristic in API layer
-- Update API reference if contract changes
+- Add new heuristic → `vtl_core/packing/heuristics.py`
+- Include new heuristic among optimization engine selections
+- Reconfigure optimization engine calculations to include new heuristic
