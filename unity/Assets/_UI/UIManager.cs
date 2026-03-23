@@ -54,6 +54,10 @@ public class UIManager : MonoBehaviour
 
     private Button _btnClearList;
 
+    private Button _btnBack;
+
+    private TextField _inputItemName;
+
     [Header("Camera Angles")]
     public Transform mainCamera;
     // We store the Position (Vector3) and Rotation (Vector3) for each angle
@@ -102,12 +106,6 @@ public class UIManager : MonoBehaviour
         _loadingOverlay = root.Q<VisualElement>("LoadingOverlay");
         if (_btnGenerate != null) _btnGenerate.clicked += OnGenerateClicked;
 
-        _inputLength.RegisterValueChangedCallback(OnInputChanged);
-        _inputWidth.RegisterValueChangedCallback(OnInputChanged);
-        _inputHeight.RegisterValueChangedCallback(OnInputChanged);
-        _inputWeight.RegisterValueChangedCallback(OnInputChanged);
-        _inputGroup.RegisterValueChangedCallback(evt => OnInputChanged(null));
-
         _btnSettings = root.Q<Button>("BtnSettings");
         _btnCloseSettings = root.Q<Button>("BtnCloseSettings");
         _settingsOverlay = root.Q<VisualElement>("SettingsOverlay");
@@ -115,11 +113,26 @@ public class UIManager : MonoBehaviour
         _inputAlgorithm = root.Q<DropdownField>("InputAlgorithm");
         _inputTimeLimit = root.Q<SliderInt>("InputTimeLimit");
 
+        // Listen for typing on all inputs (Using evt => bypasses the strict type error!)
+        if (_inputItemName != null) _inputItemName.RegisterValueChangedCallback(evt => OnInputChanged());
+        if (_inputLength != null) _inputLength.RegisterValueChangedCallback(evt => OnInputChanged());
+        if (_inputWidth != null) _inputWidth.RegisterValueChangedCallback(evt => OnInputChanged());
+        if (_inputHeight != null) _inputHeight.RegisterValueChangedCallback(evt => OnInputChanged());
+        if (_inputWeight != null) _inputWeight.RegisterValueChangedCallback(evt => OnInputChanged());
+        if (_toggleStackable != null) _toggleStackable.RegisterValueChangedCallback(evt => OnInputChanged());
+        if (_inputGroup != null) _inputGroup.RegisterValueChangedCallback(evt => OnInputChanged());
+
+        // Set the panel to "Create Mode" when the app first opens
+        SetRightPanelToCreateMode();
+
         _btnClearList = root.Q<Button>("BtnClearList");
         if (_btnClearList != null) _btnClearList.clicked += ClearAll;
 
         if (_btnSettings != null) _btnSettings.clicked += OpenSettings;
         if (_btnCloseSettings != null) _btnCloseSettings.clicked += CloseSettings;
+
+        _btnBack = root.Q<Button>("BtnBack");
+        if (_btnBack != null) _btnBack.clicked += OnBackClicked;
 
         // 1. Find the ListView
         _itemListView = root.Q<ListView>("ItemListView");
@@ -143,6 +156,40 @@ public class UIManager : MonoBehaviour
 
         _itemListView.selectionChanged += OnItemSelected;
 
+        SetAppMode(true); // Start in Inventory Mode
+        UpdateRightPanelState(true);
+
+        // --- DESELECTION FIX ---
+        // Find the background panels
+        var leftPanel = root.Q<VisualElement>("LeftPanel");
+        var rightPanel = root.Q<VisualElement>("RightPanel");
+
+        // Listen for clicks on the Left Panel
+        if (leftPanel != null)
+        {
+            leftPanel.RegisterCallback<PointerDownEvent>(evt =>
+            {
+                // If they clicked the empty background or the empty part of the list
+                var targetName = (evt.target as VisualElement)?.name;
+                if (targetName == "LeftPanel" || targetName == "ItemListView")
+                {
+                    _itemListView.ClearSelection();
+                }
+            });
+        }
+
+        // Listen for clicks on the Right Panel
+        if (rightPanel != null)
+        {
+            rightPanel.RegisterCallback<PointerDownEvent>(evt =>
+            {
+                // If they click the empty background of the right panel
+                if ((evt.target as VisualElement)?.name == "RightPanel")
+                {
+                    _itemListView.ClearSelection();
+                }
+            });
+        }
 
     }
 
@@ -179,23 +226,38 @@ public class UIManager : MonoBehaviour
 
     private void OnAddClicked()
     {
-        _itemListView.ClearSelection();
-        _currentlySelectedItem = null;
+        // 1. Grab values from the Right Panel
         float l = _inputLength.value;
         float w = _inputWidth.value;
         float h = _inputHeight.value;
         float weight = _inputWeight.value;
         bool isStackable = _toggleStackable.value;
-        string group = _inputGroup.value;
+        string group = _inputGroup != null ? _inputGroup.value : "Standard";
 
+        // 2. PROPERLY GRAB THE CUSTOM NAME
+        string itemName = $"Box {_inventory.Count + 1}"; // Default name
+        if (_inputItemName != null && !string.IsNullOrWhiteSpace(_inputItemName.value))
+        {
+            itemName = _inputItemName.value; // Override with user's custom name!
+        }
 
-        if (l == 0 || w == 0 || h == 0) return;
+        // Safety check (Don't spawn invisible boxes)
+        if (l <= 0 || w <= 0 || h <= 0) return;
 
-        var newItem = new CargoItem($"Box {_inventory.Count + 1}", l, w, h, weight, isStackable, group);
+        // 3. Create the NEW item with the correct name
+        var newItem = new CargoItem(itemName, l, w, h, weight, isStackable, group);
 
+        // 4. Add to list and 3D world
         _inventory.Add(newItem);
-        _itemListView.RefreshItems();
         SpawnVisualBox(newItem);
+
+        // 5. THE AUTO-DESELECT FIX
+        // Instantly clear the selection so the Right Panel resets to "1, 1, 1" for the next box!
+        _itemListView.ClearSelection();
+        SetRightPanelToCreateMode();
+
+        // Refresh UI
+        _itemListView.RefreshItems();
         UpdateMetrics();
     }
 
@@ -431,62 +493,71 @@ public class UIManager : MonoBehaviour
 
         // 2. CHECK SELECTION: Did we actually click something?
         var enumerator = selectedItems.GetEnumerator();
+
+        // IF THE USER DESELECTED (Clicked empty space)
         if (!enumerator.MoveNext())
         {
-            _currentlySelectedItem = null; // We deselected
+            _currentlySelectedItem = null;
+            SetRightPanelToCreateMode(); // Snap back to Create Mode
             return;
         }
 
-        // 3. GET THE DATA: Grab the specific CargoItem we clicked
+        // IF THE USER CLICKED A BOX
         CargoItem selectedData = (CargoItem)enumerator.Current;
         _currentlySelectedItem = selectedData;
 
-        // Find out which row number this is (Index)
+        // Turn the 3D box Cyan
         int selectedIndex = _inventory.IndexOf(selectedData);
-
-        // 4. HIGHLIGHT 3D BOX: Turn the corresponding 3D box Bright Yellow
         if (selectedIndex >= 0 && selectedIndex < _visualBoxes.Count)
         {
             _visualBoxes[selectedIndex].GetComponent<Renderer>().material.color = Color.cyan;
         }
 
-        // 5. FILL RIGHT PANEL: Push the data into the input fields
+        // Push data to Right Panel WITHOUT triggering typing events
+        if (_inputItemName != null) _inputItemName.SetValueWithoutNotify(selectedData.Name);
         _inputLength.SetValueWithoutNotify(selectedData.Length);
         _inputWidth.SetValueWithoutNotify(selectedData.Width);
         _inputHeight.SetValueWithoutNotify(selectedData.Height);
         _inputWeight.SetValueWithoutNotify(selectedData.Weight);
         _toggleStackable.SetValueWithoutNotify(selectedData.IsStackable);
-        _inputGroup.SetValueWithoutNotify(selectedData.GroupName);
-
+        if (_inputGroup != null) _inputGroup.SetValueWithoutNotify(selectedData.GroupName);
 
         Debug.Log($"Selected {selectedData.Name} in the Editor!");
+        UpdateRightPanelState(true);
     }
-    private void OnInputChanged(ChangeEvent<float> evt)
+
+    private void OnInputChanged()
     {
-        // If we haven't clicked a box in the list, don't do anything.
-        // (This allows us to still type numbers to create NEW boxes)
+        // 1. If we are in "Create Mode" (no box selected), do nothing. 
         if (_currentlySelectedItem == null) return;
 
-        // 1. Update the Data Object with the new numbers
+        // 2. We are in "Edit Mode". Update the Data Object with the new numbers/text!
+        if (_inputItemName != null) _currentlySelectedItem.Name = _inputItemName.value;
         _currentlySelectedItem.Length = _inputLength.value;
         _currentlySelectedItem.Width = _inputWidth.value;
         _currentlySelectedItem.Height = _inputHeight.value;
         _currentlySelectedItem.Weight = _inputWeight.value;
-        _currentlySelectedItem.GroupName = _inputGroup.value;
+        _currentlySelectedItem.IsStackable = _toggleStackable.value;
 
-        Color newColor = CargoItem.GetColorForGroup(_inputGroup.value);
-        _currentlySelectedItem.DisplayColor = newColor;
-
-        int index = _inventory.IndexOf(_currentlySelectedItem);
-        if (index >= 0 && index < _visualBoxes.Count)
+        if (_inputGroup != null)
         {
-            _visualBoxes[index].GetComponent<Renderer>().material.color = newColor;
+            _currentlySelectedItem.GroupName = _inputGroup.value;
+            _currentlySelectedItem.DisplayColor = CargoItem.GetColorForGroup(_inputGroup.value);
         }
 
-        // 4. Update the UI text in the Left Panel list
-        _itemListView.RefreshItems();
+        // 3. Find which 3D box this is
+        int index = _inventory.IndexOf(_currentlySelectedItem);
 
-        // 5. Update the Total Volume/Weight calculations at the bottom left
+        // 4. Update the 3D Box instantly!
+        if (index >= 0 && index < _visualBoxes.Count)
+        {
+            GameObject boxToResize = _visualBoxes[index];
+            boxToResize.transform.localScale = new Vector3(_currentlySelectedItem.Length, _currentlySelectedItem.Height, _currentlySelectedItem.Width);
+            boxToResize.GetComponent<Renderer>().material.color = _currentlySelectedItem.DisplayColor;
+        }
+
+        // 5. Update the UI text in the Left Panel list and bottom metrics
+        _itemListView.RefreshItems();
         UpdateMetrics();
     }
     public void SetSelectionFrom3D(GameObject clickedBox)
@@ -536,6 +607,8 @@ public class UIManager : MonoBehaviour
 
         yield return new WaitForSeconds(3f);
 
+        SetAppMode(false); // Switch to 3D Viewer Mode!
+
         _loadingOverlay.style.display = DisplayStyle.None;
 
         Debug.Log("Simulating Python Response (Coordinates Received!)...");
@@ -568,5 +641,70 @@ public class UIManager : MonoBehaviour
         }
 
         Debug.Log("Boxes snapped to final positions!");
+    }
+    // True = Show List, False = Show 3D Truck
+    public void SetAppMode(bool isInventoryMode)
+    {
+        var leftPanel = GetComponent<UIDocument>().rootVisualElement.Q<VisualElement>("LeftPanel");
+        var centerView = GetComponent<UIDocument>().rootVisualElement.Q<VisualElement>("CenterView");
+
+        if (isInventoryMode)
+        {
+            leftPanel.style.display = DisplayStyle.Flex; // Show List
+            centerView.style.display = DisplayStyle.None; // Hide Truck View Container
+        }
+        else
+        {
+            leftPanel.style.display = DisplayStyle.None; // Hide List
+            centerView.style.display = DisplayStyle.Flex; // Show Truck View Container
+
+        }
+    }
+    private void OnBackClicked()
+    {
+        // 1. Switch back to Inventory Mode (Shows List, hides Center View)
+        SetAppMode(true);
+
+        // 2. Clean up the 3D scene (Remove the "Result" boxes)
+        foreach (GameObject box in _visualBoxes) Destroy(box);
+        _visualBoxes.Clear();
+
+        // 3. Respawn the original inventory boxes so the user can edit them again
+        foreach (var item in _inventory) SpawnVisualBox(item);
+
+        Debug.Log("Returned to Editor Mode.");
+    }
+    private void UpdateRightPanelState(bool isEnabled)
+    {
+        // Enable/Disable the inputs
+        _inputLength.SetEnabled(isEnabled);
+        _inputWidth.SetEnabled(isEnabled);
+        _inputHeight.SetEnabled(isEnabled);
+        _inputWeight.SetEnabled(isEnabled);
+        _inputGroup.SetEnabled(isEnabled);
+        _toggleStackable.SetEnabled(isEnabled);
+
+        // If disabled, clear the numbers so it looks "empty"
+        if (!isEnabled)
+        {
+            _inputLength.SetValueWithoutNotify(0);
+            _inputWidth.SetValueWithoutNotify(0);
+            _inputHeight.SetValueWithoutNotify(0);
+            _inputWeight.SetValueWithoutNotify(0);
+            _inputGroup.SetValueWithoutNotify("Standard");
+            _toggleStackable.SetValueWithoutNotify(false);
+        }
+    }
+    private void SetRightPanelToCreateMode()
+    {
+        // Clear all inputs back to defaults WITHOUT triggering OnInputChanged
+        if (_inputItemName != null) _inputItemName.SetValueWithoutNotify(""); 
+        if (_inputLength != null) _inputLength.SetValueWithoutNotify(1f);
+        if (_inputWidth != null) _inputWidth.SetValueWithoutNotify(1f);
+        if (_inputHeight != null) _inputHeight.SetValueWithoutNotify(1f);
+        if (_inputWeight != null) _inputWeight.SetValueWithoutNotify(1f);
+        if (_toggleStackable != null) _toggleStackable.SetValueWithoutNotify(true);
+        if (_inputGroup != null) _inputGroup.SetValueWithoutNotify("Standard");
+
     }
 }

@@ -11,6 +11,7 @@ public class ObjectManipulator : MonoBehaviour
 
     void Update()
     {
+        if (Camera.main == null) return;
         // 1. SELECTING (Left Click Down)
         if (Input.GetMouseButtonDown(0))
         {
@@ -64,9 +65,11 @@ public class ObjectManipulator : MonoBehaviour
                 targetPos.z = Mathf.Clamp(targetPos.z, -maxW + boxW, maxW - boxW);
             }
 
-            // Lock Y so it stays on the floor (or on top of other boxes)
-            targetPos.y = _selectedObject.transform.position.y;
+            float snapValue = 0.5f;
+            targetPos.x = Mathf.Round(targetPos.x / snapValue) * snapValue;
+            targetPos.z = Mathf.Round(targetPos.z / snapValue) * snapValue;
 
+            targetPos.y = _selectedObject.transform.position.y;
             _selectedObject.transform.position = targetPos;
         }
         // Add this at the very end of your Update() function:
