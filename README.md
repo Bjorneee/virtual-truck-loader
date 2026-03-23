@@ -32,9 +32,18 @@ Virtual truck loading application. Made for SJSU CMPE195 F25-S26 Senior Project.
 - Paste [git clone https://github.com/Bjorneee/virtual-truck-loader.git]
 - Open Unity project
 - Open Visual Studio code and navigate to the preferred branch
+- Project should be loaded onto Unity for use
 
 ## Configuration
-
+- Unity Configuration
+  - Install Unity Editor version 6000.3.11f1
+  - Open the unity/ folder as a Unity project
+  - No API keys or environment variables are currently required for Unity itself
+- Python Backend Configuration
+  - Install required Python dependencies:
+  - fastapi, uvicorn, pydantic
+  - numpy, pandas, scipy, ortools (for packing algorithm)
+  - python-dotenv, pydantic-settings
 
 ## Running the Application
 - Press play button on the top middle of the Unity editor
@@ -52,3 +61,48 @@ Virtual truck loading application. Made for SJSU CMPE195 F25-S26 Senior Project.
 
 
 ## Project Structure
+virtual-truck-loader/
+│
+├── unity/        # Unity frontend (3D UI, interaction, visualization)
+├── python/       # FastAPI backend (packing algorithm + API endpoints)
+├── database/     # Likely data storage / schemas (not heavily used yet)
+├── docs/         # Documentation (API reference, design notes)
+├── tools/        # Utility scripts / helpers
+├── README.md
+
+Key Folders Explained
+unity/
+Main frontend application
+Handles:
+UI (buttons like Add, Save, Load, Pack)
+3D box visualization
+user interaction (drag/drop, camera views)
+Written in C# (Unity scripts)
+
+python/
+  Backend API using FastAPI
+  Handles:
+    /health endpoint (status check)
+    /pack endpoint (core packing algorithm)
+  Uses:
+    OR-Tools / SciPy for optimization
+    Pydantic for request/response validation
+
+database/
+  Placeholder or future storage layer
+  Likely intended for:
+    saved layouts
+    inventory data
+    persistent configurations
+
+docs/
+  Contains documentation like:
+    API reference (/pack, /health)
+    usage instructions
+    Useful for frontend/backend integration
+
+tools/
+  Utility scripts or helper programs
+  May include:
+    test data
+    automation scripts
