@@ -2,70 +2,77 @@ using UnityEngine;
 
 public class CameraController : MonoBehaviour
 {
-    [Header("Settings")]
-    public float moveSpeed = 10f;       // How fast WASD moves
-    public float lookSensitivity = 2f;  // How fast mouse rotates
-    public float scrollSpeed = 50f;     // Zoom speed
+    [Header("Target")]
+    public Transform target; // Drag your 'TruckBed' here!
 
-    private float _rotationX = 0f;
-    private float _rotationY = 0f;
+    [Header("Settings")]
+    public float rotationSpeed = 5f;
+    public float zoomSpeed = 10f;
+    public float panSpeed = 0.5f;
+    public float minZoom = 2f;
+    public float maxZoom = 20f;
+
+    private float _currentZoom = 10f;
+    private Vector3 _currentRotation;
+    private Vector3 _targetOffset; // For panning
 
     void Start()
     {
-        // Get the current rotation so we don't snap to 0,0 instantly
-        Vector3 angles = transform.eulerAngles;
-        _rotationX = angles.y;
-        _rotationY = angles.x;
+        // Initialize rotation based on current view
+        _currentRotation = transform.eulerAngles;
+        _currentZoom = Vector3.Distance(transform.position, target.position);
     }
 
     void Update()
     {
-        // Only move if the Right Mouse Button is held down
-        // This prevents the camera from moving while you are typing in the UI
-        if (Input.GetMouseButton(1))
+        if (target == null) return;
+
+        // 1. ORBIT (Right Mouse Button)
+        if (Input.GetMouseButton(1) && !Input.GetKey(KeyCode.LeftShift))
         {
-            HandleRotation();
-            HandleMovement();
+            _currentRotation.x += Input.GetAxis("Mouse X") * rotationSpeed;
+            _currentRotation.y -= Input.GetAxis("Mouse Y") * rotationSpeed;
+            // Limit vertical angle so you don't go under the floor
+            _currentRotation.y = Mathf.Clamp(_currentRotation.y, 5f, 85f);
         }
 
-        HandleZoom();
-    }
+        // 2. PAN (Middle Mouse OR Shift + Right Click)
+        if (Input.GetMouseButton(2) || (Input.GetMouseButton(1) && Input.GetKey(KeyCode.LeftShift)))
+        {
+            float x = Input.GetAxis("Mouse X") * panSpeed;
+            float y = Input.GetAxis("Mouse Y") * panSpeed;
 
-    void HandleRotation()
-    {
-        // 1. Get Mouse Input
-        float mouseX = Input.GetAxis("Mouse X") * lookSensitivity;
-        float mouseY = Input.GetAxis("Mouse Y") * lookSensitivity;
+            // Move the focal point relative to camera facing
+            _targetOffset -= transform.right * x;
+            _targetOffset -= transform.up * y;
+        }
 
-        // 2. Calculate new rotation
-        _rotationX += mouseX;
-        _rotationY -= mouseY;
-
-        // Clamp looking up/down so you don't flip over
-        _rotationY = Mathf.Clamp(_rotationY, -90f, 90f);
-
-        // 3. Apply rotation
-        transform.rotation = Quaternion.Euler(_rotationY, _rotationX, 0);
-    }
-
-    void HandleMovement()
-    {
-        float x = Input.GetAxis("Horizontal"); // A / D keys
-        float z = Input.GetAxis("Vertical");   // W / S keys
-        float y = 0;
-
-        // Q and E to go Down/Up
-        if (Input.GetKey(KeyCode.E)) y = 1;
-        if (Input.GetKey(KeyCode.Q)) y = -1;
-
-        Vector3 moveDir = (transform.right * x) + (transform.forward * z) + (transform.up * y);
-        transform.position += moveDir * moveSpeed * Time.deltaTime;
-    }
-
-    void HandleZoom()
-    {
-        // Scroll wheel to zoom forward/backward
+        // 3. ZOOM (Scroll Wheel)
         float scroll = Input.GetAxis("Mouse ScrollWheel");
-        transform.position += transform.forward * scroll * scrollSpeed * Time.deltaTime;
+        _currentZoom -= scroll * zoomSpeed;
+        _currentZoom = Mathf.Clamp(_currentZoom, minZoom, maxZoom);
+
+        // APPLY TRANSFORM
+        // We calculate position based on: Target + Offset - (Rotation * Distance)
+        Quaternion rotation = Quaternion.Euler(_currentRotation.y, _currentRotation.x, 0);
+        Vector3 position = (target.position + _targetOffset) - (rotation * Vector3.forward * _currentZoom);
+
+        if (position.y < 0.5f)
+        {
+            position.y = 0.5f;
+        }
+
+        transform.rotation = rotation;
+        transform.position = position;
+    }
+    public void SetViewAngle(Vector3 newRotation)
+    {
+        _currentRotation = newRotation;
+
+        // Optional: Reset zoom to default so you don't get lost
+        _currentZoom = 15f;
+
+        // Reset panning offset so you look straight at the truck
+        _targetOffset = Vector3.zero;
     }
 }
