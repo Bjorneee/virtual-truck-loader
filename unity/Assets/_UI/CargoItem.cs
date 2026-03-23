@@ -11,7 +11,8 @@ public class CargoItem
     public float Height;
     public float Weight;
     public bool IsStackable;
-
+    public Vector3 Position;
+    public Quaternion Rotation;
     public string GroupName; // NEW: Track the category
     public Color DisplayColor;
 
@@ -25,6 +26,8 @@ public class CargoItem
         Weight = weight;
         IsStackable = stackable;
         GroupName = groupName;
+        Position = Vector3.zero;
+        Rotation = Quaternion.identity;
 
         // Assign color based on the group!
         DisplayColor = GetColorForGroup(groupName);
