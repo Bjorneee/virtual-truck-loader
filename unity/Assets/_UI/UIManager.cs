@@ -3,6 +3,8 @@ using UnityEngine;
 using UnityEngine.UIElements;
 using System.IO; // Required for writing files
 
+[SerializeField] private PackingBackendClient backendClient;
+
 public class UIManager : MonoBehaviour
 {
     public static UIManager Instance;
@@ -311,86 +313,129 @@ public class UIManager : MonoBehaviour
         Debug.Log($"<color=cyan>SAVED JSON to:</color> {path}");
     }
 
-    private void WritePackRequestJSON()
+//Currently Obsolete/ used for debugging with file read/write instead of backend calls. Can be re-purposed for "Export JSON" button if desired.
+   
+    // private void WritePackRequestJSON()
+    // {
+    //     PackRequestData request = new PackRequestData();
+    //     request.TruckLength = _truckL.value;
+    //     request.TruckWidth = _truckW.value;
+    //     request.TruckHeight = _truckH.value;
+    //     request.items = new List<PackRequestItem>();
+
+    //     foreach (CargoItem item in _inventory)
+    //     {
+    //         PackRequestItem requestedItem = new PackRequestItem
+    //         {
+    //             Id = item.Id,
+    //             Length = item.Length,
+    //             Width = item.Width,
+    //             Height = item.Height,
+    //             Weight = item.Weight,
+    //         };
+
+    //         request.items.Add(requestedItem);
+
+    //         Debug.Log($"ITEM PACK REQUEST: -> {item.Name} | ID={item.Id} | L={item.Length}, W={item.Width}, H={item.Height}, Weight={item.Weight}");
+    //     }
+
+    //     //write JSON
+    //     string requestJson = JsonUtility.ToJson(request, true);
+    //     string requestPath = Path.Combine(Application.persistentDataPath, "pack_request.json");
+    //     File.WriteAllText(requestPath, requestJson);
+
+    //     Debug.Log($"<color=cyan>PACK REQUEST SAVED to:</color> {requestPath}");
+    // }
+
+    // private void WritePackResponseJSON()
+    // {
+    //     //Read backend response JSON
+    //     string responsePath = Path.Combine(Application.persistentDataPath, "pack_response.json");
+
+    //     if (!File.Exists(responsePath))
+    //     {
+    //         Debug.LogWarning($"No pack response file found at: {responsePath}");
+    //         return;
+    //     }
+
+    //     string responseJson = File.ReadAllText(responsePath);
+    //     PackResponseData response = JsonUtility.FromJson<PackResponseData>(responseJson);
+
+    //     if (response == null || response.items == null)
+    //     {
+    //         Debug.LogError("Invalid pack response JSON.");
+    //         return;
+    //     }
+
+    //     //Apply returned positions
+    //     foreach (PackResponseItem responseItem in response.items)
+    //     {
+    //         if (_itemObjects.TryGetValue(responseItem.Id, out GameObject box))
+    //         {
+    //             box.transform.position = responseItem.Position;
+
+    //             CargoItem item = _inventory.Find(x => x.Id == responseItem.Id);
+    //             if (item != null)
+    //             {
+    //                 item.Position = responseItem.Position;
+    //                 item.Rotation = responseItem.Rotation;
+    //             }
+
+    //             Debug.Log($"SORT RESPONSE -> ID={responseItem.Id} moved to {responseItem.Position}");
+    //         }
+    //         else
+    //         {
+    //             Debug.LogWarning($"No spawned box found for backend item ID: {responseItem.Id}");
+    //         }
+    //     }
+
+    //     Debug.Log("<color=green>PACK RESPONSE APPLIED</color>");
+    // }
+
+    private PackingRequest BuildPackingRequest()
+{
+    var request = new PackingRequest
     {
-        PackRequestData request = new PackRequestData();
-        request.TruckLength = _truckL.value;
-        request.TruckWidth = _truckW.value;
-        request.TruckHeight = _truckH.value;
-        request.items = new List<PackRequestItem>();
-
-        foreach (CargoItem item in _inventory)
+        truck = new TruckData
         {
-            PackRequestItem requestedItem = new PackRequestItem
-            {
-                Id = item.Id,
-                Length = item.Length,
-                Width = item.Width,
-                Height = item.Height,
-                Weight = item.Weight,
-            };
+            id = "T1",
+            width = _truckW.value,
+            height = _truckH.value,
+            depth = _truckL.value
+        },
+        boxes = new List<BoxData>()
+    };
 
-            request.items.Add(requestedItem);
+    foreach (CargoItem item in _inventory)
+    {
+        request.boxes.Add(new BoxData
+        {
+            id = item.Id,
+            width = item.Width,
+            height = item.Height,
+            depth = item.Length,
+            weight = item.Weight,
+            rotatable = item.Stackable,
+            priority = 0f
+        });
 
-            Debug.Log($"ITEM PACK REQUEST: -> {item.Name} | ID={item.Id} | L={item.Length}, W={item.Width}, H={item.Height}, Weight={item.Weight}");
-        }
-
-        //write JSON
-        string requestJson = JsonUtility.ToJson(request, true);
-        string requestPath = Path.Combine(Application.persistentDataPath, "pack_request.json");
-        File.WriteAllText(requestPath, requestJson);
-
-        Debug.Log($"<color=cyan>PACK REQUEST SAVED to:</color> {requestPath}");
+        Debug.Log($"Pack item -> {item.Name} | id={item.Id} | W={item.Width} H={item.Height} D={item.Length} WT={item.Weight}");
     }
 
-    private void WritePackResponseJSON()
-    {
-        //Read backend response JSON
-        string responsePath = Path.Combine(Application.persistentDataPath, "pack_response.json");
+    return request;
+}
 
-        if (!File.Exists(responsePath))
-        {
-            Debug.LogWarning($"No pack response file found at: {responsePath}");
-            return;
-        }
-
-        string responseJson = File.ReadAllText(responsePath);
-        PackResponseData response = JsonUtility.FromJson<PackResponseData>(responseJson);
-
-        if (response == null || response.items == null)
-        {
-            Debug.LogError("Invalid pack response JSON.");
-            return;
-        }
-
-        //Apply returned positions
-        foreach (PackResponseItem responseItem in response.items)
-        {
-            if (_itemObjects.TryGetValue(responseItem.Id, out GameObject box))
-            {
-                box.transform.position = responseItem.Position;
-
-                CargoItem item = _inventory.Find(x => x.Id == responseItem.Id);
-                if (item != null)
-                {
-                    item.Position = responseItem.Position;
-                    item.Rotation = responseItem.Rotation;
-                }
-
-                Debug.Log($"SORT RESPONSE -> ID={responseItem.Id} moved to {responseItem.Position}");
-            }
-            else
-            {
-                Debug.LogWarning($"No spawned box found for backend item ID: {responseItem.Id}");
-            }
-        }
-
-        Debug.Log("<color=green>PACK RESPONSE APPLIED</color>");
-    }
     private void OnSortClicked()
     {
-        WritePackRequestJSON();
-        WritePackResponseJSON();
+        PackingRequest request = BuildPackingRequest();
+        StartCoroutine(backendClient.SendPackRequest(
+            request,
+            OnPackSuccess,
+            OnPackError
+        ));
+
+        // WritePackRequestJSON();
+        // WritePackResponseJSON();
 
     }
     private void ClearAll()
@@ -411,6 +456,54 @@ public class UIManager : MonoBehaviour
         _itemListView.RefreshItems();
 
     }
+
+    private void OnPackSuccess(PackingResponse response)
+{
+    if (response == null)
+    {
+        Debug.LogError("Pack response was null.");
+        return;
+    }
+
+    if (response.placed != null)
+    {
+        foreach (var placed in response.placed)
+        {
+            if (_itemObjects.TryGetValue(placed.id, out GameObject box) && box != null)
+            {
+                Vector3 newPos = new Vector3(placed.x, placed.y, placed.z);
+                box.transform.position = newPos;
+
+                CargoItem item = _inventory.Find(i => i.Id == placed.id);
+                if (item != null)
+                    item.Position = newPos;
+
+                Debug.Log($"Placed {placed.id} at {newPos}, rotation={placed.rotation}");
+            }
+            else
+            {
+                Debug.LogWarning($"No spawned box found for id {placed.id}");
+            }
+        }
+    }
+
+    if (response.unplaced != null)
+    {
+        foreach (var unplaced in response.unplaced)
+        {
+            Debug.LogWarning($"Unplaced box: {unplaced.id}");
+        }
+    }
+
+    Debug.Log($"Packing complete. Utilization={response.utilization}, runtime_ms={response.runtime_ms}, notes={response.notes}");
+}
+
+private void OnPackError(string error)
+{
+    Debug.LogError("Packing backend error: " + error);
+}
+
+
     private void OnLoadClicked()
     {
         string path = Path.Combine(Application.persistentDataPath, "loadout.json");
