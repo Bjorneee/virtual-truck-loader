@@ -187,6 +187,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e00ea18c199703046b64ff700985ba15, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::UIManager
+  backendClient: {fileID: 573364125}
   itemRowTemplate: {fileID: 9197481963319205126, guid: 5d188373dafb3cc459ee6baca8f65ad8, type: 3}
   boxPrefab: {fileID: 720896692909411615, guid: 3cc783c0ec6690c43bdb6d2bfa815692, type: 3}
   spawnLocation: {fileID: 0}
@@ -201,6 +202,53 @@ MonoBehaviour:
   cameraControl: {fileID: 709090947}
   truckFloorObject: {fileID: 802097226}
   truckVolumeObject: {fileID: 1137364340}
+--- !u!1 &573364124
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 573364126}
+  - component: {fileID: 573364125}
+  m_Layer: 0
+  m_Name: BackendLoader
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &573364125
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 573364124}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e6d49b6e05b93594d981a9ac41da743b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PackingBackendClient
+  baseUrl: http://127.0.0.1:8000
+  workingDirectory: ../../../
+  autoStartServer: 1
+--- !u!4 &573364126
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 573364124}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &709090942
 GameObject:
   m_ObjectHideFlags: 0
@@ -444,6 +492,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!33 &802097229
 MeshFilter:
@@ -548,6 +597,7 @@ MeshRenderer:
   m_SortingLayerID: 0
   m_SortingLayer: 0
   m_SortingOrder: 0
+  m_MaskInteraction: 0
   m_AdditionalVertexStreams: {fileID: 0}
 --- !u!33 &1137364343
 MeshFilter:
@@ -659,14 +709,14 @@ Light:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1698944364}
   m_Enabled: 1
-  serializedVersion: 11
+  serializedVersion: 12
   m_Type: 1
   m_Color: {r: 1, g: 0.95686275, b: 0.8392157, a: 1}
   m_Intensity: 1
   m_Range: 10
   m_SpotAngle: 30
   m_InnerSpotAngle: 21.80208
-  m_CookieSize: 10
+  m_CookieSize2D: {x: 10, y: 10}
   m_Shadows:
     m_Type: 2
     m_Resolution: -1
@@ -821,3 +871,4 @@ SceneRoots:
   - {fileID: 802097230}
   - {fileID: 2006023668}
   - {fileID: 1156264411}
+  - {fileID: 573364126}
