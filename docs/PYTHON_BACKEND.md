@@ -62,6 +62,42 @@ python/
 - Geometry helpers
 - Sorting helpers
 
+## Heuristic Scoring Engine
+
+1. Space Utilization = U = Occupied Volume / Total Truck Volume
+Range: (0,1)
+
+Goal is to maximize it.
+
+Occupied Volume = sum of all occupied space = sum of all boxes
+
+Total Truck Volume = L * W * H
+
+- The Weight (w_U = 0.5): This is the highest priority. The goal of the project is to fit as much as possible.
+
+2. Structural Stability = S = 1/n * Sum of Area_supported / Area_base
+
+Penalty: Any item with Area_supported < 50% triggers a critical stability warning.
+
+- The Weight (w_S = 0.3): This is 30% of the score. It ensures the items don't fall over.
+
+3. Mass Distribution = M = 1 - |CoG_x,y - Center_x,y| / Max deviation
+
+Goal is to Keep M close to 1.0 to ensure vehicle safety.
+
+- The Weight (w_W = 0.2): This is 20% of the score. It ensures the safety of the truck's axles.
+
+4. C is the number of times a rule was broken, and w_C is the "fine" for that rule.
+
+Rule Violation (C),Penalty Weight (wC​),   Total Deduction
+Gravity Violation    0.50                   (0.50⋅count)
+Crushing Risk.       0.30                   (0.30⋅count)
+Balance Warning      0.20                   (0.20⋅count)
+
+* Total Layout Score (Ls) = (w_U * U) + (w_S * S) + (w_W * M) - (C)
+
+## Optimization & Implementation Strategy
+
 ## How To Run
 cd python
 
