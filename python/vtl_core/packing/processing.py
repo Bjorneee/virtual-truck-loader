@@ -4,7 +4,7 @@ from enum import Enum, auto
 from python.api.schemas import PackingRequest, PackingResponse, PlacedBox, Box
 from python.vtl_core.domain.models import Truck_t, Box_t, PlacedBox_t
 
-from python.vtl_core.packing.heurisitics import first_fit_pack, ff_guillotine_pack
+from python.vtl_core.packing.heurisitics import first_fit_pack, ff_guillotine_pack, maxrects_pack, skyline_pack
 
 # Enumerations used to select desired layer-packing heuristic
 class Hstix(Enum):
@@ -65,6 +65,8 @@ def begin_pack(truck: Truck_t, boxes: List[Box_t]) -> Tuple[List[PlacedBox], Lis
     return (placed, unplaced, utilization, notes)
 
 
+test = Hstix.SKY
+
 def layer_pack(truck: Truck_t, boxes: List[Box_t], initial_h: Optional[Hstix] = None) -> Tuple[List[PlacedBox_t], List[str]]:
 
     z_cursor: float = 0.0
@@ -73,10 +75,11 @@ def layer_pack(truck: Truck_t, boxes: List[Box_t], initial_h: Optional[Hstix] = 
     use_heurisitc: Hstix = initial_h
     if not use_heurisitc:
         # Replace with optimization choice
-        use_heurisitc = Hstix.FFG
+        use_heurisitc = test
 
     placed: List[PlacedBox_t] = []
     notes: List[str] = []
+    layer_index: int = 0
 
     while y_cursor < truck.height and boxes:
 
@@ -84,30 +87,48 @@ def layer_pack(truck: Truck_t, boxes: List[Box_t], initial_h: Optional[Hstix] = 
 
         match use_heurisitc:
             case Hstix.FFG:
-                print("Packing with FFG")
                 layer_data = ff_guillotine_pack(
                     truck=truck,
                     boxes=boxes,
                     layer_y=y_cursor
                 )
                 print("Layer packed with FFG")
+            case Hstix.MAX:
+                layer_data = maxrects_pack(
+                    truck=truck,
+                    boxes=boxes,
+                    layer_y=y_cursor
+                )
+                print("Layer packed with MaxRects")
+            case Hstix.SKY:
+                layer_data = skyline_pack(
+                    truck=truck,
+                    boxes=boxes,
+                    layer_y=y_cursor
+                )
+                print("Layer packed with SkylineSort")
             case _:
                 raise ValueError(f"Invalid heuristic choice.")
             
-        notes.extend(layer_data[1])
+        print("Layer:", layer_index)
 
         if not layer_data[0]:
-            notes.append("No boxes placed in this iteration")
+            print("No boxes placed in this iteration")
             break
 
         placed.extend(layer_data[0])
+        notes.extend(layer_data[1])
         y_cursor += layer_data[2]
 
+        print("Truck height:", truck.height)
+        print("Height used:", y_cursor)
+
         if len(boxes) == initial_box_count:
-            notes.append("Box list unchanged. Breaking loop.")
+            print("Box list unchanged. Breaking loop.")
             break
 
-        use_heurisitc = Hstix.FFG # Replace with optimization choice
+        use_heurisitc = test # Replace with optimization choice
+        layer_index += 1
             
     return [placed, notes]
 
