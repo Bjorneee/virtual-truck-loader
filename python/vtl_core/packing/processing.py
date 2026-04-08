@@ -2,7 +2,9 @@ from typing import List, Tuple
 
 from python.api.schemas import PackingRequest, PackingResponse, PlacedBox, Box
 from python.vtl_core.domain.models import Truck_t, Box_t, PlacedBox_t
-from python.vtl_core.packing import heurisitics as pack
+
+from python.vtl_core.packing.heurisitics import first_fit_pack, ff_guillotine_pack
+from python.vtl_core.packing.heurisitics import Heuristics as hstic
 
 
 def create_instances(req: PackingRequest) -> Tuple[Truck_t, Box_t]:
@@ -40,10 +42,22 @@ def begin_pack(truck: Truck_t, boxes: List[Box_t]) -> Tuple[List[PlacedBox], Lis
     # Retain original load for future use
     original_load = boxes.copy()
 
-    packing_result = pack.first_fit_pack(
-        truck=truck,
-        boxes=boxes
-    )
+    heuristic: hstic = hstic.FFG # Test assignment
+    packing_result: List[PlacedBox_t]
+
+    match heuristic:
+        case hstic.FF:
+            packing_result = first_fit_pack(
+                truck=truck,
+                boxes=boxes
+            )
+        case hstic.FFG:
+            packing_result = ff_guillotine_pack(
+                truck=truck,
+                boxes=boxes
+            )
+        case _:
+            print("Invalid or no heuristic selected.")
 
     placed: List[PlacedBox] = [PlacedBox.model_validate(p_box) for p_box in packing_result[0]]
     unplaced: List[Box] = [Box.model_validate(box) for box in boxes]

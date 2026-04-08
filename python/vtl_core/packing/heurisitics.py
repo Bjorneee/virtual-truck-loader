@@ -13,8 +13,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from typing import List, Optional, Tuple
+from enum import Enum, auto
 
 from python.vtl_core.domain.models import Box_t, PlacedBox_t, Truck_t
+
+# Enumerations used to select desired layer-packing heuristic
+class Heuristics(Enum):
+    FF  = auto()
+    FFG = auto()
+    MAX = auto()
+    SKY = auto()
+
 
 @dataclass
 class Row:
@@ -157,404 +166,410 @@ def first_fit_pack(truck: Truck_t, boxes: List[Box_t]) -> List[PlacedBox_t]:
 
     return [placed, notes]
 
-"""
 
-First-Fit Guillotine (FFG)
-
-"""
-
-# ----------------------------
-# Geometry helpers (top-left origin)
-# ----------------------------
-# Coordinate system for each 2D layer (width x depth):
-#   origin (0,0) is TOP-LEFT corner of the layer rectangle
-#   x increases RIGHTWARD
-#   y increases DOWNWARD
-#
-# A free-rectangle is represented by its top-left corner (x, y) and size (w,h),
-# where it spans:
-#   x in [x, x + w]
-#   y in [y, y + h]
-
-
-@dataclass(frozen=True)
-class Rect2D:
-    w: float  # width (layer-x extent)
-    h: float  # height (layer-y extent), here "depth"
 
 
 @dataclass
 class FreeRectTL:
-    x: float  # x coordinate of top-left corner
-    y: float  # y coordinate of top-left corner
+    """
+    Top-left-origin free rectangle on a single floor layer.
+
+    Coordinate system for a layer:
+      origin = top-left
+      x increases to the right
+      z increases downward / forward into the truck floor plane
+
+    The rectangle spans:
+      x in [x, x + w)
+      z in [z, z + d)
+    """
+    x: float
+    z: float
     w: float
-    h: float
-
-    @property
-    def right(self) -> float:
-        return self.x + self.w
-
-    @property
-    def bottom(self) -> float:
-        return self.y + self.h
+    d: float
 
 
-def _contains(a: FreeRectTL, b: FreeRectTL) -> bool:
-    # a contains b
-    return (a.x <= b.x) and (a.y <= b.y) and (a.right >= b.right) and (a.bottom >= b.bottom)
+@dataclass
+class LayerPlacement:
+    box: Box_t
+    x: float
+    z: float
+    rotation: int   # 0 = no floor rotation, 1 = rotated around Y (swap width/depth)
 
 
-def _almost_eq(a: float, b: float, eps: float = 1e-9) -> bool:
-    return abs(a - b) <= eps
+_EPS = 1e-9
 
 
-def _prune_contained(free_rects: List[FreeRectTL]) -> List[FreeRectTL]:
-    out: List[FreeRectTL] = []
-    for i, r in enumerate(free_rects):
+def _fits_in_rect(box_w: float, box_d: float, rect: FreeRectTL) -> bool:
+    return box_w <= rect.w + _EPS and box_d <= rect.d + _EPS
+
+
+def _rect_area(rect: FreeRectTL) -> float:
+    return rect.w * rect.d
+
+
+def _prune_free_rects(rects: List[FreeRectTL]) -> List[FreeRectTL]:
+    """
+    Remove degenerate rectangles and rectangles fully contained by others.
+    """
+    cleaned: List[FreeRectTL] = []
+
+    for r in rects:
+        if r.w <= _EPS or r.d <= _EPS:
+            continue
+        cleaned.append(r)
+
+    pruned: List[FreeRectTL] = []
+    for i, a in enumerate(cleaned):
         contained = False
-        for j, s in enumerate(free_rects):
-            if i != j and _contains(s, r):
+        for j, b in enumerate(cleaned):
+            if i == j:
+                continue
+            if (
+                a.x >= b.x - _EPS and
+                a.z >= b.z - _EPS and
+                a.x + a.w <= b.x + b.w + _EPS and
+                a.z + a.d <= b.z + b.d + _EPS
+            ):
                 contained = True
                 break
         if not contained:
-            out.append(r)
+            pruned.append(a)
 
-    # remove exact duplicates
-    uniq: List[FreeRectTL] = []
-    seen = set()
-    for r in out:
-        key = (r.x, r.y, r.w, r.h)
-        if key not in seen:
-            seen.add(key)
-            uniq.append(r)
-    return uniq
+    # Stable top-left ordering
+    pruned.sort(key=lambda r: (r.z, r.x, r.d * r.w))
+    return pruned
 
 
-def _merge_guillotine(free_rects: List[FreeRectTL]) -> List[FreeRectTL]:
-    """
-    Optional merge step:
-      - merge horizontally adjacent rects with same (y,h) and touching in x
-      - merge vertically adjacent rects with same (x,w) and touching in y
-    """
-    changed = True
-    rects = free_rects[:]
-
-    while changed:
-        changed = False
-        rects = _prune_contained(rects)
-
-        # Horizontal merges: same y,h and touching on x edge
-        rects.sort(key=lambda r: (r.y, r.h, r.x, r.w))
-        i = 0
-        while i < len(rects):
-            a = rects[i]
-            merged = False
-            for j in range(i + 1, len(rects)):
-                b = rects[j]
-                if not (_almost_eq(a.y, b.y) and _almost_eq(a.h, b.h)):
-                    continue
-
-                # b immediately to the right of a
-                if _almost_eq(a.right, b.x):
-                    rects.pop(j)
-                    rects.pop(i)
-                    rects.append(FreeRectTL(x=a.x, y=a.y, w=a.w + b.w, h=a.h))
-                    changed = True
-                    merged = True
-                    break
-
-                # a immediately to the right of b
-                if _almost_eq(b.right, a.x):
-                    rects.pop(j)
-                    rects.pop(i)
-                    rects.append(FreeRectTL(x=b.x, y=b.y, w=a.w + b.w, h=a.h))
-                    changed = True
-                    merged = True
-                    break
-
-            if not merged:
-                i += 1
-
-        if changed:
-            continue
-
-        # Vertical merges: same x,w and touching on y edge
-        rects.sort(key=lambda r: (r.x, r.w, r.y, r.h))
-        i = 0
-        while i < len(rects):
-            a = rects[i]
-            merged = False
-            for j in range(i + 1, len(rects)):
-                b = rects[j]
-                if not (_almost_eq(a.x, b.x) and _almost_eq(a.w, b.w)):
-                    continue
-
-                # b immediately below a
-                if _almost_eq(a.bottom, b.y):
-                    rects.pop(j)
-                    rects.pop(i)
-                    rects.append(FreeRectTL(x=a.x, y=a.y, w=a.w, h=a.h + b.h))
-                    changed = True
-                    merged = True
-                    break
-
-                # a immediately below b
-                if _almost_eq(b.bottom, a.y):
-                    rects.pop(j)
-                    rects.pop(i)
-                    rects.append(FreeRectTL(x=b.x, y=b.y, w=a.w, h=a.h + b.h))
-                    changed = True
-                    merged = True
-                    break
-
-            if not merged:
-                i += 1
-
-    return _prune_contained(rects)
-
-
-# ----------------------------
-# First-Fit Guillotine packer (single layer)
-# ----------------------------
-
-@dataclass
-class Placed2DTL:
-    x: float  # placed rect's top-left corner x
-    y: float  # placed rect's top-left corner y
-    w: float
-    h: float
-    rotated: bool
-
-
-def _split_guillotine(
-    fr: FreeRectTL,
+def _split_guillotine_top_left(
+    free_rect: FreeRectTL,
+    placed_x: float,
+    placed_z: float,
     placed_w: float,
-    placed_h: float,
-    split_rule: str = "larger_leftover",
+    placed_d: float,
 ) -> List[FreeRectTL]:
     """
-    Place at fr's top-left corner (fr.x, fr.y), then split remaining space into 2 free rects.
+    Guillotine split for a box placed at the TOP-LEFT of free_rect.
 
-    Two canonical cut orders:
-      A) vertical-first:
-         - right:        (x+rw, y,     fw-rw, fh)
-         - bottom-left:  (x,    y+rh,  rw,    fh-rh)
+    We produce:
+      1) right remainder
+      2) bottom remainder
 
-      B) horizontal-first:
-         - right-top:    (x+rw, y,     fw-rw, rh)
-         - bottom:       (x,    y+rh,  fw,    fh-rh)
-
-    split_rule:
-      - "larger_leftover": if leftover_w >= leftover_h do vertical-first else horizontal-first
-      - "smaller_leftover": if leftover_w <= leftover_h do vertical-first else horizontal-first
+    This preserves top-left-origin behavior cleanly.
     """
-    fw, fh = fr.w, fr.h
-    lw = fw - placed_w
-    lh = fh - placed_h
-
-    if lw < 0 or lh < 0:
-        return []
-
-    if split_rule == "larger_leftover":
-        vertical_first = (lw >= lh)
-    elif split_rule == "smaller_leftover":
-        vertical_first = (lw <= lh)
-    else:
-        raise ValueError(f"Unknown split_rule: {split_rule}")
-
     out: List[FreeRectTL] = []
 
-    if vertical_first:
-        # Right remainder (full height)
-        if lw > 0:
-            out.append(FreeRectTL(x=fr.x + placed_w, y=fr.y, w=lw, h=fh))
-        # Bottom-left remainder (width = placed_w)
-        if lh > 0:
-            out.append(FreeRectTL(x=fr.x, y=fr.y + placed_h, w=placed_w, h=lh))
-    else:
-        # Right-top remainder (height = placed_h)
-        if lw > 0 and placed_h > 0:
-            out.append(FreeRectTL(x=fr.x + placed_w, y=fr.y, w=lw, h=placed_h))
-        # Bottom remainder (full width)
-        if lh > 0:
-            out.append(FreeRectTL(x=fr.x, y=fr.y + placed_h, w=fw, h=lh))
-
-    return [r for r in out if r.w > 0 and r.h > 0]
-
-
-def ff_guillotine_layer_top_left(
-    layer_w: float,
-    layer_h: float,
-    rects: List[Tuple[str, Rect2D]],  # (id, (w,h))
-    allow_rotate: bool = True,        # Y-axis only: swap (w,h) in-plane
-    split_rule: str = "larger_leftover",
-    do_merge: bool = True,
-) -> Tuple[List[Placed2DTL], List[str]]:
-    """
-    First-Fit Guillotine for a single 2D bin (layer) with TOP-LEFT origin.
-    Returns (placed, unplaced_ids).
-    """
-    free_rects: List[FreeRectTL] = [FreeRectTL(x=0.0, y=0.0, w=layer_w, h=layer_h)]
-    placed: List[Placed2DTL] = []
-    unplaced: List[str] = []
-
-    for rid, r in rects:
-        candidate = _place_first_fit(free_rects, r, allow_rotate)
-        if candidate is None:
-            unplaced.append(rid)
-            continue
-
-        fr_idx, used_w, used_h, rotated = candidate
-        fr = free_rects.pop(fr_idx)
-
-        # Place at the free rectangle's top-left corner
-        placed.append(Placed2DTL(x=fr.x, y=fr.y, w=used_w, h=used_h, rotated=rotated))
-
-        # Split and update free list
-        free_rects.extend(_split_guillotine(fr, used_w, used_h, split_rule=split_rule))
-        free_rects = _prune_contained(free_rects)
-        if do_merge:
-            free_rects = _merge_guillotine(free_rects)
-
-    return placed, unplaced
-
-
-def _place_first_fit(
-    free_rects: List[FreeRectTL],
-    r: Rect2D,
-    allow_rotate: bool,
-) -> Optional[Tuple[int, float, float, bool]]:
-    """
-    Returns (free_index, used_w, used_h, rotated) for the first free rect that fits.
-    """
-    for i, fr in enumerate(free_rects):
-        # no rotation
-        if r.w <= fr.w and r.h <= fr.h:
-            return (i, r.w, r.h, False)
-        # rotate 90 degrees in-plane (Y-axis in 3D): swap width/depth
-        if allow_rotate and r.h <= fr.w and r.w <= fr.h:
-            return (i, r.h, r.w, True)
-    return None
-
-
-# ----------------------------
-# 3D wrapper: stack guillotine-packed layers in z
-# ----------------------------
-
-def pack_truck_ff_guillotine_top_left(
-    truck,  # Truck_t
-    boxes,  # List[Box_t]
-    *,
-    allow_rotate_y: bool = True,      # Y-axis only: swap width/depth
-    sort_by: str = "footprint_desc",  # "footprint_desc" | "volume_desc" | "none"
-    split_rule: str = "larger_leftover",
-    do_merge: bool = True,
-) -> Tuple[List[PlacedBox_t], List[Box_t], List[str]]:
-    """
-    Packs boxes into the truck by stacking 2D guillotine layers.
-
-    Layering policy (simple, deterministic):
-      - take remaining boxes (sorted)
-      - choose layer_height = max height among remaining (i.e., the first box's height after sort by height desc)
-      - pack as many as possible on the floor (width x depth) using FF-Guillotine
-      - advance z by layer_height, repeat until height exhausted
-
-    Coordinates:
-      - x,y are returned in TOP-LEFT-origin coordinates on each layer
-      - z increases upward from 0 (bottom of truck)
-    """
-
-    # Packing detail log
-    log: List[str] = []
-
-    # Choose sort order for packing attempts
-    remaining = boxes[:]
-    if sort_by == "footprint_desc":
-        remaining.sort(key=lambda b: (b.width * b.depth), reverse=True)
-        log.append("Remaining boxes sorted by footprint descending.")
-    elif sort_by == "volume_desc":
-        remaining.sort(key=lambda b: (b.width * b.depth * b.height), reverse=True)
-        log.append("Remaining boxes sorted by volume descending")
-    elif sort_by != "none":
-        raise ValueError(f"Unknown sort_by: {sort_by}")
-
-    placed3d : List[PlacedBox_t] = []
-    unplaced_final : List[Box_t] = []
-
-    z = 0.0
-    # Keep going while boxes and vertical space remain
-    while remaining and z < truck.height:
-        # Greedy layer height choice: tallest remaining
-        remaining.sort(key=lambda b: b.height, reverse=True)
-        layer_height = remaining[0].height
-
-        if z + layer_height > truck.height:
-            # Anything left cannot fit vertically
-            unplaced_final.extend(remaining)
-            break
-
-        # Prepare 2D rectangles for this layer (width x depth footprint).
-        # (We allow all boxes whose height <= layer_height; since layer_height is max, that is all of them.)
-        rects2d: List[Tuple[str, Rect2D]] = [(b.id, Rect2D(b.width, b.depth)) for b in remaining]
-
-        placed2d, _unplaced_ids = ff_guillotine_layer_top_left(
-            layer_w=truck.width,
-            layer_h=truck.depth,
-            rects=rects2d,
-            allow_rotate=allow_rotate_y,
-            split_rule=split_rule,
-            do_merge=do_merge,
+    # Right strip
+    right_w = free_rect.w - placed_w
+    if right_w > _EPS:
+        out.append(
+            FreeRectTL(
+                x=placed_x + placed_w,
+                z=placed_z,
+                w=right_w,
+                d=placed_d,
+            )
         )
 
-        # IMPORTANT: do NOT use _find_id_for_placement() if you can avoid it.
-        # The clean fix is to carry the id in the placed record.
-        # Here is the minimal change approach: we remap by dimensions (can be ambiguous with duplicates).
-        placed_ids = set()
-        by_id = {b.id: b for b in remaining}
+    # Bottom strip
+    bottom_d = free_rect.d - placed_d
+    if bottom_d > _EPS:
+        out.append(
+            FreeRectTL(
+                x=placed_x,
+                z=placed_z + placed_d,
+                w=free_rect.w,
+                d=bottom_d,
+            )
+        )
 
-        for p in placed2d:
-            bid = _find_id_for_placement_2d(p, by_id)
-            b = by_id[bid]
-            placed3d.append(
-                PlacedBox_t(
-                    id=b.id,
-                    x=p.x,            # TOP-LEFT origin coord
-                    y=p.y,            # TOP-LEFT origin coord
-                    z=z,
-                    rotation=1 if p.rotated else 0,  # 1 means width/depth swapped (Y rotation)
+    return out
+
+
+def _choose_orientation_for_rect(box: Box_t, rect: FreeRectTL) -> Optional[Tuple[float, float, int]]:
+    """
+    Returns (placed_width, placed_depth, rotation_code) for the first valid
+    floor orientation in this rectangle.
+
+    rotation_code:
+      0 -> original (width, depth)
+      1 -> Y-axis 90 degree rotation (depth, width)
+
+    Preference:
+      - first-fit
+      - if both fit, choose the one with larger used edge alignment / less waste
+    """
+    candidates: List[Tuple[float, float, int, float]] = []
+
+    # No floor rotation
+    if _fits_in_rect(box.width, box.depth, rect):
+        waste = (rect.w - box.width) * (rect.d - box.depth)
+        candidates.append((box.width, box.depth, 0, waste))
+
+    # Y-axis rotation only: swap width and depth
+    if _fits_in_rect(box.depth, box.width, rect):
+        waste = (rect.w - box.depth) * (rect.d - box.width)
+        candidates.append((box.depth, box.width, 1, waste))
+
+    if not candidates:
+        return None
+
+    # Smaller waste first, then non-rotated first for stability
+    candidates.sort(key=lambda t: (t[3], t[2]))
+    w, d, rot, _ = candidates[0]
+    return (w, d, rot)
+
+
+def _pack_single_layer_ffg(
+    layer_boxes: List[Box_t],
+    layer_width: float,
+    layer_depth: float,
+) -> Tuple[List[LayerPlacement], List[Box_t], List[str]]:
+    """
+    Packs as many boxes as possible into one 2D layer using a top-left-origin
+    first-fit guillotine heuristic.
+
+    Returns:
+      placements in this layer,
+      boxes that did NOT fit this layer,
+      notes
+    """
+    free_rects: List[FreeRectTL] = [FreeRectTL(0.0, 0.0, layer_width, layer_depth)]
+    placed: List[LayerPlacement] = []
+    unplaced: List[Box_t] = []
+    notes: List[str] = []
+
+    for box in layer_boxes:
+        placed_this_box = False
+
+        # First-fit: scan free rects in top-left order
+        for idx, rect in enumerate(free_rects):
+            orient = _choose_orientation_for_rect(box, rect)
+            if orient is None:
+                continue
+
+            pw, pd, rot = orient
+
+            # Place at top-left corner of this free rectangle
+            px = rect.x
+            pz = rect.z
+
+            placed.append(
+                LayerPlacement(
+                    box=box,
+                    x=px,
+                    z=pz,
+                    rotation=rot,
                 )
             )
-            placed_ids.add(b.id)
 
-        # Update remaining/unplaced layer
-        new_remaining = [b for b in remaining if b.id not in placed_ids]
-        remaining = new_remaining
+            new_rects = free_rects[:idx] + free_rects[idx + 1:]
+            new_rects.extend(
+                _split_guillotine_top_left(
+                    free_rect=rect,
+                    placed_x=px,
+                    placed_z=pz,
+                    placed_w=pw,
+                    placed_d=pd,
+                )
+            )
 
-        # If nothing placed, stop to avoid infinite loop
-        if not placed_ids:
-            unplaced_final.extend(remaining)
+            free_rects = _prune_free_rects(new_rects)
+            placed_this_box = True
             break
 
-        z += layer_height
+        if not placed_this_box:
+            unplaced.append(box)
 
-        log.append("Packed using FFG.")
+    if placed:
+        used_area = sum(
+            (lp.box.width * lp.box.depth) if lp.rotation == 0 else (lp.box.depth * lp.box.width)
+            for lp in placed
+        )
+        layer_area = layer_width * layer_depth
+        notes.append(
+            f"Packed layer with {len(placed)} box(es); floor utilization = {used_area / layer_area:.2%}"
+        )
+    else:
+        notes.append("No boxes fit in the current layer.")
 
-    return placed3d, unplaced_final, log
+    return placed, unplaced, notes
 
 
-def _find_id_for_placement_2d(p: Placed2DTL, by_id: dict) -> str:
+def ff_guillotine_pack(
+    truck: Truck_t,
+    boxes: List[Box_t],
+) -> Tuple[List[PlacedBox_t], List[str]]:
     """
-    WARNING: ambiguous if you have multiple boxes with identical footprints.
-    Prefer to store the id in Placed2DTL directly.
+    Top-left-origin first-fit guillotine layer packing.
+
+    Inputs:
+      truck: Truck_t
+      boxes: List[Box_t]
+
+    Output:
+      (
+        placed_boxes: List[PlacedBox_t],
+        notes: List[str]
+      )
+
+    Side effect:
+      modifies the original `boxes` list so that it contains ONLY unplaced boxes.
+
+    Assumptions:
+      - Y is the vertical axis.
+      - Each layer is packed over the truck floor (X by Z plane).
+      - Box floor rotation is Y-axis only:
+          (width, depth) or (depth, width)
+      - Boxes are sorted by non-increasing height, then footprint, then volume.
+      - Each new layer height is the tallest remaining box that starts that layer.
     """
-    for bid, b in by_id.items():
-        if _almost_eq(p.w, b.width) and _almost_eq(p.h, b.depth) and not p.rotated:
-            return bid
-        if _almost_eq(p.w, b.depth) and _almost_eq(p.h, b.width) and p.rotated:
-            return bid
+    placed_boxes: List["PlacedBox_t"] = []
+    notes: List[str] = []
 
-    for bid, b in by_id.items():
-        if _almost_eq(p.w * p.h, b.width * b.depth):
-            return bid
+    if truck.width <= 0 or truck.depth <= 0 or truck.height <= 0:
+        notes.append("Truck dimensions must all be positive.")
+        return placed_boxes, notes
 
-    raise RuntimeError("Could not map 2D placement back to a box id (duplicate sizes likely).")
+    if not boxes:
+        notes.append("No boxes provided.")
+        return placed_boxes, notes
+
+    # Sort in-place-ish, but preserve object identity since we must mutate original list later.
+    remaining: List[Box_t] = sorted(
+        boxes,
+        key=lambda b: (
+            -b.height,
+            -(b.width * b.depth),
+            -(b.width * b.depth * b.height),
+            -(b.priority if b.priority is not None else 0.0),
+            b.id,
+        ),
+    )
+
+    current_y = 0.0
+    layer_index = 0
+
+    total_weight = 0.0
+    if truck.max_weight is not None:
+        # We will enforce weight as we accept placements.
+        notes.append(f"Truck max weight = {truck.max_weight}")
+
+    while remaining and current_y < truck.height - _EPS:
+        # Skip boxes that can never fit in remaining truck height
+        remaining_height = truck.height - current_y
+        fit_height_candidates = [b for b in remaining if b.height <= remaining_height + _EPS]
+
+        if not fit_height_candidates:
+            notes.append(
+                f"Stopped: no remaining boxes fit within remaining truck height {remaining_height:.3f}."
+            )
+            break
+
+        # First-fit-decreasing-by-height style layer choice:
+        # layer height is set by the first remaining box that can still fit vertically.
+        seed_box = fit_height_candidates[0]
+        layer_height = seed_box.height
+
+        layer_candidates: List[Box_t] = [
+            b for b in remaining if b.height <= layer_height + _EPS
+        ]
+
+        # Filter candidates that can fit truck floor in at least one allowed orientation.
+        floor_fit_candidates: List[Box_t] = []
+        skipped_floor: List[Box_t] = []
+
+        for b in layer_candidates:
+            fits_normal = (b.width <= truck.width + _EPS and b.depth <= truck.depth + _EPS)
+            fits_rot = (b.depth <= truck.width + _EPS and b.width <= truck.depth + _EPS)
+            if fits_normal or fits_rot:
+                floor_fit_candidates.append(b)
+            else:
+                skipped_floor.append(b)
+
+        if not floor_fit_candidates:
+            notes.append(
+                f"Layer {layer_index}: no candidate boxes fit on truck floor for layer height {layer_height:.3f}."
+            )
+            # Remove impossible boxes only if they can never fit any future layer.
+            impossible_now = [
+                b for b in remaining
+                if not (
+                    (b.width <= truck.width + _EPS and b.depth <= truck.depth + _EPS) or
+                    (b.depth <= truck.width + _EPS and b.width <= truck.depth + _EPS)
+                )
+            ]
+            if impossible_now:
+                for b in impossible_now:
+                    remaining.remove(b)
+                notes.append(
+                    f"Removed {len(impossible_now)} box(es) that cannot fit truck floor in any allowed orientation."
+                )
+            continue
+
+        layer_placements, layer_unplaced, layer_notes = _pack_single_layer_ffg(
+            floor_fit_candidates,
+            truck.width,
+            truck.depth,
+        )
+        notes.extend([f"Layer {layer_index}: {msg}" for msg in layer_notes])
+
+        if not layer_placements:
+            notes.append(f"Layer {layer_index}: nothing placed, stopping to avoid infinite loop.")
+            break
+
+        # Commit placements to 3D truck coordinates
+        placed_ids = set()
+        placed_weight_this_layer = 0.0
+
+        for lp in layer_placements:
+            box = lp.box
+
+            if truck.max_weight is not None:
+                if total_weight + placed_weight_this_layer + box.weight > truck.max_weight + _EPS:
+                    notes.append(
+                        f"Skipped box {box.id}: placing it would exceed max truck weight."
+                    )
+                    continue
+
+            placed_boxes.append(
+                PlacedBox_t(
+                    id=box.id,
+                    x=lp.x,
+                    y=current_y,
+                    z=lp.z,
+                    rotation=lp.rotation,
+                )
+            )
+            placed_ids.add(box.id)
+            placed_weight_this_layer += box.weight
+
+        if not placed_ids:
+            notes.append(
+                f"Layer {layer_index}: candidate placements existed, but all were rejected by weight limit."
+            )
+            break
+
+        total_weight += placed_weight_this_layer
+
+        # Remove all actually placed boxes from remaining
+        remaining = [b for b in remaining if b.id not in placed_ids]
+
+        notes.append(
+            f"Layer {layer_index}: placed {len(placed_ids)} box(es) at y={current_y:.3f} with layer height {layer_height:.3f}."
+        )
+
+        current_y += layer_height
+        layer_index += 1
+
+    # Mutate original list to contain only unplaced boxes
+    boxes[:] = remaining
+
+    notes.append(f"Total placed boxes: {len(placed_boxes)}")
+    notes.append(f"Total unplaced boxes: {len(boxes)}")
+    notes.append(f"Total used height: {current_y:.3f} / {truck.height:.3f}")
+
+    if truck.max_weight is not None:
+        notes.append(f"Total placed weight: {total_weight:.3f} / {truck.max_weight:.3f}")
+
+    return placed_boxes, notes

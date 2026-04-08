@@ -39,13 +39,32 @@ def spawn_truck(render, truck_data):
 
 def spawn_box(render, box_data, box_specs):
 
-    width = box_specs["width"]
-    height = box_specs["height"]
-    depth = box_specs["depth"]
+    width:  float
+    height: float
+    depth:  float
 
-    x = box_data["x"] + width / 2
-    y = box_data["y"] + height / 2
-    z = box_data["z"] + depth / 2
+    x: float
+    y: float
+    z: float
+
+    # Swap width/depth if box is rotated
+    if (box_data["rotation"]):
+        width = box_specs["depth"]
+        height = box_specs["height"]
+        depth = box_specs["width"]
+
+        x = box_data["x"] + depth / 2
+        y = box_data["y"] + height / 2
+        z = box_data["z"] + width / 2
+
+    else:
+        width = box_specs["width"]
+        height = box_specs["height"]
+        depth = box_specs["depth"]
+
+        x = box_data["x"] + width / 2
+        y = box_data["y"] + height / 2
+        z = box_data["z"] + depth / 2
 
     group = NodePath(f"box_{box_data['id']}")
     group.setPos(x, y, z)                         # IMPORTANT: Panda3D positions from CENTER, not corner
