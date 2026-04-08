@@ -65,7 +65,7 @@ def begin_pack(truck: Truck_t, boxes: List[Box_t]) -> Tuple[List[PlacedBox], Lis
     return (placed, unplaced, utilization, notes)
 
 
-test = Hstix.SKY
+test = Hstix.FFG # Test packing with a single heuristic
 
 def layer_pack(truck: Truck_t, boxes: List[Box_t], initial_h: Optional[Hstix] = None) -> Tuple[List[PlacedBox_t], List[str]]:
 
