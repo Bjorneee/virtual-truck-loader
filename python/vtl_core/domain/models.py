@@ -82,21 +82,6 @@ class Truck_t:
 
 ### Heuristic Helper Classes
 
-@dataclass
-class Row:
-    z_start: float
-    depth_used: float = 0.0
-    x_cursor: float = 0.0
-
-
-@dataclass
-class Layer:
-    y_start: float
-    height: float
-    depth_cursor: float = 0.0
-    rows: List[Row] = field(default_factory=list)
-
-
 """
 Top-left-origin free rectangle on the truck floor.
 

@@ -4,11 +4,11 @@ from enum import Enum, auto
 from python.api.schemas import PackingRequest, PackingResponse, PlacedBox, Box
 from python.vtl_core.domain.models import Truck_t, Box_t, PlacedBox_t
 
-from python.vtl_core.packing.heurisitics import first_fit_pack, ff_guillotine_pack, maxrects_pack, skyline_pack
+from python.vtl_core.packing.heurisitics import ff_row_pack, ff_guillotine_pack, maxrects_pack, skyline_pack
 
 # Enumerations used to select desired layer-packing heuristic
 class Hstix(Enum):
-    FF  = auto()
+    FFR = auto()
     FFG = auto()
     MAX = auto()
     SKY = auto()
@@ -65,7 +65,7 @@ def begin_pack(truck: Truck_t, boxes: List[Box_t]) -> Tuple[List[PlacedBox], Lis
     return (placed, unplaced, utilization, notes)
 
 
-test = Hstix.FFG # Test packing with a single heuristic
+test = Hstix.FFR # Test packing with a single heuristic
 
 def layer_pack(truck: Truck_t, boxes: List[Box_t], initial_h: Optional[Hstix] = None) -> Tuple[List[PlacedBox_t], List[str]]:
 
@@ -86,6 +86,13 @@ def layer_pack(truck: Truck_t, boxes: List[Box_t], initial_h: Optional[Hstix] = 
         initial_box_count = len(boxes)
 
         match use_heurisitc:
+            case Hstix.FFR:
+                layer_data = ff_row_pack(
+                    truck=truck,
+                    boxes=boxes,
+                    layer_y=y_cursor
+                )
+                print("Layer packed with FFR")
             case Hstix.FFG:
                 layer_data = ff_guillotine_pack(
                     truck=truck,

@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import List, Optional, Tuple
 
 from python.vtl_core.domain.models import Box_t, PlacedBox_t, Truck_t
-from python.vtl_core.domain.models import Row, Layer, FreeRectTL, SkylineSeg
+from python.vtl_core.domain.models import FreeRectTL, SkylineSeg
 
 from python.vtl_core.utils import _ffg_prune_free_rects, _ffg_split_free_rect, _choose_orientation
 from python.vtl_core.utils import _find_best_position_for_box_tl, _rects_intersect, _mr_split_free_rect, _mr_prune_free_rects
@@ -13,132 +13,145 @@ _EPS = 1e-9
 
 
 """                          << FIRST FIT >>
+    Single-layer first-fit row packing.
 
-    Basic layered first-fit packing using internal dataclasses.
+    Packs boxes into exactly one layer starting at y = layer_y.
+    Boxes are placed left-to-right along x, and new rows are opened along z.
 
-    Inputs:
-        truck: Truck_t
-        boxes: List[Box_t], expected to be sorted by descending height
+    Args:
+        truck: Truck/container dimensions.
+        boxes: Mutable list of boxes. Will be modified in place to contain
+               only boxes not placed in this layer.
+        layer_y: Bottom y-coordinate of the layer.
+        layer_height: Optional maximum allowed box height for this layer.
+                      If None, any box that fits in the remaining truck height
+                      may be considered.
+        sort_boxes: If True, sort candidates before packing.
 
-    Output:
-        Tuple[List[PlacedBox_t], List[str]]
-
-    Side effect:
-        The original `boxes` list is modified in place so that after packing,
-        it contains only boxes that could not be placed.
-
-    Notes:
-        - No rotation is performed in this version.
-        - No weight-limit enforcement yet.
-        - Uses a simple layered shelf/row strategy.
-
+    Returns:
+        placed: List of placed boxes for this layer.
+        notes: Informational notes.
+        used_layer_height: Max height of any box placed in this layer, or 0.0
+                           if nothing was placed.
 """
-def first_fit_pack(truck: Truck_t, boxes: List[Box_t]) -> Tuple[List[PlacedBox_t], List[str]]:
+def ff_row_pack(
+    truck: Truck_t,
+    boxes: List[Box_t],
+    layer_y: float = 0.0,
+    layer_height: Optional[float] = None,
+    sort_boxes: bool = True,
+) -> Tuple[List[PlacedBox_t], List[str], float]:
 
     placed: List[PlacedBox_t] = []
-    layers: List[Layer] = []
-    unplaced: List[Box_t] = []
     notes: List[str] = []
 
-    for box in boxes:
+    # Remaining vertical space in truck from this layer upward
+    remaining_height = truck.height - layer_y
+    if remaining_height <= 0:
+        notes.append(f"Layer start y={layer_y} is outside truck height.")
+        return placed, notes, 0.0
 
-        print("Attempting: [" + box.id + "]")
-        # Reject immediately if the box cannot fit in the truck at all
-        if (
-            box.width > truck.width
-            or box.height > truck.height
-            or box.depth > truck.depth
-        ):
-            unplaced.append(box)
-            notes.append("Box: [" + box.id + "] does not fit in truck.")
-            print("Failure on: [" + box.id + "]")
-            continue
+    # Effective height cap for this layer
+    height_cap = remaining_height if layer_height is None else min(layer_height, remaining_height)
 
-        was_placed = False
+    # Work on a copy so we can rebuild boxes[:] with only unplaced boxes later
+    candidates = list(boxes)
 
-        # 1) Try to place in existing rows of existing layers
-        for layer in layers:
-            if box.height > layer.height:
-                continue
-
-            for row in layer.rows:
-                fits_width = row.x_cursor + box.width <= truck.width
-                fits_row_depth = box.depth <= row.depth_used
-
-                if fits_width and fits_row_depth:
-                    placed.append(
-                        PlacedBox_t(
-                            id=box.id,
-                            x=row.x_cursor,
-                            y=layer.y_start,
-                            z=row.z_start,
-                            rotation=0,
-                        )
-                    )
-                    row.x_cursor += box.width
-                    was_placed = True
-                    print("Box placed: [" + box.id + "]")
-                    break
-
-            if was_placed:
-                break
-
-            # 2) Try creating a new row in this existing layer
-            if layer.depth_cursor + box.depth <= truck.depth:
-                new_row = Row(
-                    z_start=layer.depth_cursor,
-                    depth_used=box.depth,
-                    x_cursor=box.width,
-                )
-                layer.rows.append(new_row)
-                layer.depth_cursor += box.depth
-
-                placed.append(
-                    PlacedBox_t(
-                        id=box.id,
-                        x=0.0,
-                        y=layer.y_start,
-                        z=new_row.z_start,
-                        rotation=0,
-                    )
-                )
-                was_placed = True
-                print("Box placed: [" + box.id + "]")
-                break
-
-        if was_placed:
-            continue
-
-        # 3) Try creating a new layer
-        used_height = sum(layer.height for layer in layers)
-        if used_height + box.height <= truck.height:
-            new_layer = Layer(
-                y_start=used_height,
-                height=box.height,
-                depth_cursor=box.depth,
-                rows=[Row(z_start=0.0, depth_used=box.depth, x_cursor=box.width)],
+    if sort_boxes:
+        candidates.sort(
+            key=lambda b: (
+                -b.height,
+                -b.footprint,
+                -b.volume,
+                -(b.priority if b.priority is not None else 0.0),
+                b.id,
             )
-            layers.append(new_layer)
+        )
 
+    unplaced: List[Box_t] = []
+    used_layer_height = 0.0
+
+    # Row state
+    row_z = 0.0           # z start of current row
+    row_depth = 0.0       # max depth used by current row
+    row_x = 0.0           # x cursor within current row
+    has_row = False
+
+    for box in candidates:
+
+        # Hard reject for this specific layer / truck
+        if box.width > truck.width or box.depth > truck.depth:
+            unplaced.append(box)
+            print(f"Box: [{box.id}] footprint does not fit in truck floor.")
+            continue
+
+        if box.height > height_cap:
+            unplaced.append(box)
+            print(f"Box: [{box.id}] exceeds maximum height.")
+            continue
+
+        # First box starts first row
+        if not has_row:
             placed.append(
                 PlacedBox_t(
                     id=box.id,
                     x=0.0,
-                    y=new_layer.y_start,
+                    y=layer_y,
                     z=0.0,
                     rotation=0,
                 )
             )
-            print("Box placed: [" + box.id + "]")
-        else:
-            unplaced.append(box)
-            print("Failure on: [" + box.id + "]")
+            row_x = box.width
+            row_z = 0.0
+            row_depth = box.depth
+            has_row = True
+            used_layer_height = max(used_layer_height, box.height)
+            print(f"Box placed: [{box.id}]")
+            continue
 
-    # Modify input list in place to keep only boxes that could not be placed
+        # Try to fit in current row
+        if row_x + box.width <= truck.width and box.depth <= row_depth:
+            placed.append(
+                PlacedBox_t(
+                    id=box.id,
+                    x=row_x,
+                    y=layer_y,
+                    z=row_z,
+                    rotation=0,
+                )
+            )
+            row_x += box.width
+            used_layer_height = max(used_layer_height, box.height)
+            print(f"Box: [{box.id}] at ({row_x}, {layer_y}, {row_z})")
+            continue
+
+        # Otherwise try to open a new row
+        new_row_z = row_z + row_depth
+        if new_row_z + box.depth <= truck.depth:
+            placed.append(
+                PlacedBox_t(
+                    id=box.id,
+                    x=0.0,
+                    y=layer_y,
+                    z=new_row_z,
+                    rotation=0,
+                )
+            )
+            row_z = new_row_z
+            row_x = box.width
+            row_depth = box.depth
+            used_layer_height = max(used_layer_height, box.height)
+            print(f"Box: [{box.id}] at (0, {layer_y}, {new_row_z})")
+            continue
+
+        # Could not place in this layer
+        unplaced.append(box)
+        print(f"Box: [{box.id}] could not be placed.")
+
     boxes[:] = unplaced
-    notes.append("Packed with First-Fit")
+    notes.append("Packed by: FFR")
 
-    return [placed, notes]
+    return placed, notes, used_layer_height
 
 
 
