@@ -13,9 +13,9 @@
             <ui:VisualElement name="LeftPanel" style="flex-grow: 2; width: auto; background-color: rgb(43, 45, 49); margin-top: 0; height: auto; border-top-left-radius: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; border-bottom-left-radius: 0; padding-top: 15px; padding-right: 15px; padding-bottom: 15px; padding-left: 15px; border-top-width: 0; border-right-width: 0; border-bottom-width: 0; border-left-width: 0;">
                 <ui:Label text="Truck Dimensions&#10;" name="TruckDimensions" class="text-light" style="-unity-font-style: bold; margin-top: 10px; margin-left: 5px;" />
                 <ui:VisualElement name="TruckSettings" style="flex-grow: 0; flex-direction: row; align-items: center; height: auto; border-left-color: rgb(229, 229, 229); border-right-color: rgb(229, 229, 229); border-top-color: rgb(229, 229, 229); border-bottom-color: rgb(229, 229, 229); border-bottom-width: 0; border-top-width: 0; flex-shrink: 0;">
-                    <ui:FloatField label="L" value="0" name="TruckL" class="text-light truck-input input-field" style="width: auto; flex-grow: 1; margin-right: 5px;" />
-                    <ui:FloatField label="W" value="0" name="TruckW" class="text-light truck-input input-field" style="width: auto; flex-grow: 1; margin-right: 5px;" />
-                    <ui:FloatField label="H" value="0" name="TruckH" class="text-light truck-input input-field" style="width: auto; flex-grow: 1;" />
+                    <ui:FloatField label="L" value="10" name="TruckL" class="text-light truck-input input-field" style="width: auto; flex-grow: 1; margin-right: 5px;" />
+                    <ui:FloatField label="W" value="10" name="TruckW" class="text-light truck-input input-field" style="width: auto; flex-grow: 1; margin-right: 5px;" />
+                    <ui:FloatField label="H" value="10" name="TruckH" class="text-light truck-input input-field" style="width: auto; flex-grow: 1;" />
                 </ui:VisualElement>
                 <ui:Label text="Inventory List&#10;" name="Stats" class="text-light" style="-unity-font-style: bold; padding-top: 4px; margin-top: 10px; margin-left: 0; border-top-width: 1px; border-left-color: rgb(255, 250, 250); border-right-color: rgb(255, 250, 250); border-top-color: rgb(255, 250, 250); border-bottom-color: rgb(255, 250, 250); margin-right: 0;" />
                 <ui:VisualElement name="ListWrapper" style="flex-grow: 1;">
@@ -28,21 +28,22 @@
                 <ui:VisualElement name="StatsFooter" style="flex-grow: 1; border-top-width: 1px; border-left-color: rgb(255, 250, 250); border-right-color: rgb(255, 250, 250); border-top-color: rgb(255, 250, 250); border-bottom-color: rgb(255, 250, 250); margin-top: 5px; padding-top: 5px; flex-shrink: 0;">
                     <ui:Label text="Total Weight: 0 kg&#10;" name="LblWeight" class="text-light" />
                     <ui:Label text="Volume Used: 0.0%" name="LblVolume" class="text-light" />
+                    <ui:ProgressBar value="0" name="BarVolume" />
                 </ui:VisualElement>
                 <ui:Button text="🚀 GENERATE LOADOUT" name="BtnGenerate" class="text-light" style="height: 40px; background-color: rgb(35, 165, 89); -unity-font-style: bold; border-top-left-radius: 8px; border-top-right-radius: 8px; border-bottom-right-radius: 8px; border-bottom-left-radius: 8px; font-size: 16px;" />
             </ui:VisualElement>
             <ui:VisualElement name="CenterView" picking-mode="Ignore" style="flex-grow: 2; background-color: rgba(0, 0, 0, 0); width: 200px;">
-                <ui:Button text="⬅ Back to Editor" name="BtnBack" class="text-light" style="background-color: rgb(43, 45, 49); position: absolute;" />
+                <ui:Button text="⬅ Back to List" name="BtnBack" selectable="false" focusable="false" class="text-light" style="background-color: rgb(43, 45, 49); position: absolute;" />
             </ui:VisualElement>
             <ui:VisualElement name="RightPanel" style="flex-grow: 0; width: 350px; background-color: rgb(43, 45, 49); flex-shrink: 0; margin-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; border-bottom-left-radius: 0; padding-top: 8px; padding-right: 8px; padding-bottom: 8px; padding-left: 8px; -unity-background-image-tint-color: rgb(43, 45, 49);">
-                <ui:VisualElement name="PreviewBox" style="flex-grow: 1; height: 200px;" />
+                <ui:VisualElement name="PreviewBox" style="flex-grow: 1; height: 200px; justify-content: center; align-items: center; background-image: url(&quot;project://database/Assets/_UI/BoxPreviewTexture.renderTexture?fileID=8400000&amp;guid=44f12a8d12c14f34199ac2bafae8bf2c&amp;type=2#BoxPreviewTexture&quot;);" />
                 <ui:ScrollView style="flex-grow: 1;">
                     <ui:Label text="Package Properties" name="Property" class="text-light" style="-unity-font-style: bold; margin-left: 4px; margin-top: 10px;" />
                     <ui:TextField label="Item Name" name="InputItemName" class="text-light" />
-                    <ui:FloatField label="Length(m)" value="0" name="InputLength" class="text-light" />
-                    <ui:FloatField label="Width(m)" value="0" name="InputWidth" class="text-light" />
-                    <ui:FloatField label="Height(m)" value="0" name="InputHeight" class="text-light" />
-                    <ui:FloatField label="Weight(kg)" value="0" name="InputWeight" class="text-light" />
+                    <ui:FloatField label="Length(m)" value="1" name="InputLength" class="text-light" />
+                    <ui:FloatField label="Width(m)" value="1" name="InputWidth" class="text-light" />
+                    <ui:FloatField label="Height(m)" value="1" name="InputHeight" class="text-light" />
+                    <ui:FloatField label="Weight(kg)" value="1" name="InputWeight" class="text-light" />
                     <ui:DropdownField label=" Item Group" name="InputGroup" choices="Standard ,Fragile,Heavy,Electronics" index="0" class="text-light" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0;" />
                     <ui:Toggle label="Stackable?" name="ToggleStackable" class="text-light" />
                 </ui:ScrollView>
