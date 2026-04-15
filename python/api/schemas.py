@@ -9,6 +9,7 @@ class Box(BaseModel):
     height: float
     depth: float
     weight: float
+    rotatable: bool = True
     priority: Optional[float] = 0.0
 
 class Truck(BaseModel):
@@ -32,6 +33,11 @@ class PlacedBox(BaseModel):
     y: float
     z: float
     rotation: int  # e.g. 0–5 for orthogonal rotations
+
+class UnplacedBox(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str # e.g. "too large", "exceeds weight limit", etc.
 
 class PackingResponse(BaseModel):
     placed: Optional[List[PlacedBox]]

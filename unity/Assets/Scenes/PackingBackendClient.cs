@@ -11,7 +11,7 @@ using Debug = UnityEngine.Debug;
 public class PackingBackendClient : MonoBehaviour
 {
     [Header("Server")]
-    [SerializeField] private string baseUrl = "http://127.0.0.1:8000/";
+    [SerializeField] private string baseUrl = "http://127.0.0.1:8000";
     [SerializeField] private string pythonExecutable = "python";
     [SerializeField] private string workingDirectory = "";
     [SerializeField] private bool autoStartServer = true;
@@ -122,7 +122,7 @@ public class PackingBackendClient : MonoBehaviour
             using var req = UnityWebRequest.Get($"{baseUrl.TrimEnd('/')}/health");
             yield return req.SendWebRequest();
         
-        if(req.result == UnityWebRequest.Success && req.responseCode == 200){
+        if(req.result == UnityWebRequest.Result.Success && req.responseCode == 200){
             IsBackendReady = true;
                 Debug.Log("Backend is healthy.");
                 yield break;
