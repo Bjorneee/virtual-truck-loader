@@ -1,8 +1,17 @@
-from typing import List, Tuple
+from typing import List, Tuple, Optional
+from enum import Enum, auto
 
 from python.api.schemas import PackingRequest, PackingResponse, PlacedBox, Box
 from python.vtl_core.domain.models import Truck_t, Box_t, PlacedBox_t
-from python.vtl_core.packing import heurisitics as pack
+
+from python.vtl_core.packing.heurisitics import ff_row_pack, ff_guillotine_pack, maxrects_pack, skyline_pack
+
+# Enumerations used to select desired layer-packing heuristic
+class Hstix(Enum):
+    FFR = auto()
+    FFG = auto()
+    MAX = auto()
+    SKY = auto()
 
 
 def create_instances(req: PackingRequest) -> Tuple[Truck_t, Box_t]:
@@ -33,14 +42,15 @@ def create_instances(req: PackingRequest) -> Tuple[Truck_t, Box_t]:
 
     return (truck, boxes)
 
+
 def begin_pack(truck: Truck_t, boxes: List[Box_t]) -> Tuple[List[PlacedBox], List[Box], float, List[str]]:
 
     print("Beginning packing...")
 
     # Retain original load for future use
     original_load = boxes.copy()
-
-    packing_result = pack.first_fit_pack(
+    
+    packing_result = layer_pack(
         truck=truck,
         boxes=boxes
     )
@@ -53,6 +63,82 @@ def begin_pack(truck: Truck_t, boxes: List[Box_t]) -> Tuple[List[PlacedBox], Lis
     print("Packing completed.")
 
     return (placed, unplaced, utilization, notes)
+
+
+test = Hstix.FFR # Test packing with a single heuristic
+
+def layer_pack(truck: Truck_t, boxes: List[Box_t], initial_h: Optional[Hstix] = None) -> Tuple[List[PlacedBox_t], List[str]]:
+
+    z_cursor: float = 0.0
+    y_cursor: float = 0.0
+
+    use_heurisitc: Hstix = initial_h
+    if not use_heurisitc:
+        # Replace with optimization choice
+        use_heurisitc = test
+
+    placed: List[PlacedBox_t] = []
+    notes: List[str] = []
+    layer_index: int = 0
+
+    while y_cursor < truck.height and boxes:
+
+        initial_box_count = len(boxes)
+
+        match use_heurisitc:
+            case Hstix.FFR:
+                layer_data = ff_row_pack(
+                    truck=truck,
+                    boxes=boxes,
+                    layer_y=y_cursor
+                )
+                print("Layer packed with FFR")
+            case Hstix.FFG:
+                layer_data = ff_guillotine_pack(
+                    truck=truck,
+                    boxes=boxes,
+                    layer_y=y_cursor
+                )
+                print("Layer packed with FFG")
+            case Hstix.MAX:
+                layer_data = maxrects_pack(
+                    truck=truck,
+                    boxes=boxes,
+                    layer_y=y_cursor
+                )
+                print("Layer packed with MaxRects")
+            case Hstix.SKY:
+                layer_data = skyline_pack(
+                    truck=truck,
+                    boxes=boxes,
+                    layer_y=y_cursor
+                )
+                print("Layer packed with SkylineSort")
+            case _:
+                raise ValueError(f"Invalid heuristic choice.")
+            
+        print("Layer:", layer_index)
+
+        if not layer_data[0]:
+            print("No boxes placed in this iteration")
+            break
+
+        placed.extend(layer_data[0])
+        notes.extend(layer_data[1])
+        y_cursor += layer_data[2]
+
+        print("Truck height:", truck.height)
+        print("Height used:", y_cursor)
+
+        if len(boxes) == initial_box_count:
+            print("Box list unchanged. Breaking loop.")
+            break
+
+        use_heurisitc = test # Replace with optimization choice
+        layer_index += 1
+            
+    return [placed, notes]
+
 
 
 def get_utilization(truck: Truck_t, p_boxes: List[PlacedBox_t], boxes: List[Box_t]) -> float:
@@ -68,7 +154,6 @@ def get_utilization(truck: Truck_t, p_boxes: List[PlacedBox_t], boxes: List[Box_
         if matching is None:
             raise ValueError(f"Placed Box could not be located in load list\n")
         
-        print(matching)
         total_volume += matching.volume
     
     return total_volume / truck.volume
