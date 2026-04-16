@@ -18,6 +18,15 @@ class Box_t:
 
     # Methods
 
+    def __eq__(self, other):
+        if not isinstance(other, Box_t):
+            return NotImplemented
+        return (
+            self.width == other.width and
+            self.height == other.height and
+            self.depth == other.depth
+        )
+
     # Returns the volume occupied by Item
     @property
     def volume(self) -> float:
@@ -112,3 +121,13 @@ class SkylineSeg:
     x: float
     z: float
     w: float
+
+
+@dataclass
+class PackRegion:
+    x: float
+    y: float
+    z: float
+    width: float
+    depth: float
+    height: float

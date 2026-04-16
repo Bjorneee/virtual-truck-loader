@@ -1,12 +1,23 @@
 from typing import List, Tuple, Optional
 from enum import Enum, auto
 
-from python.api.schemas import PackingRequest, PackingResponse, PlacedBox, Box
-from python.vtl_core.domain.models import Truck_t, Box_t, PlacedBox_t
+from python.api.schemas import PackingRequest, PlacedBox, Box
+from python.vtl_core.domain.models import Truck_t, Box_t, PlacedBox_t, PackRegion
 
-from python.vtl_core.packing.heurisitics import ff_row_pack, ff_guillotine_pack, maxrects_pack, skyline_pack
+from python.vtl_core.utils import (
+    _dims_from_rotation,
+    _compute_local_extents,
+    _translate_placements
+)
+from python.vtl_core.packing.heurisitics import (
+    ff_row_pack,
+    ff_guillotine_pack,
+    maxrects_pack,
+    skyline_pack,
+)
 
-# Enumerations used to select desired layer-packing heuristic
+_EPS = 1e-9
+
 class Hstix(Enum):
     FFR = auto()
     FFG = auto()
@@ -14,146 +25,210 @@ class Hstix(Enum):
     SKY = auto()
 
 
-def create_instances(req: PackingRequest) -> Tuple[Truck_t, Box_t]:
-
-    # Create data model instance of Truck
-    truck: Truck_t = Truck_t(
+def create_instances(req: PackingRequest) -> Tuple[Truck_t, List[Box_t]]:
+    truck = Truck_t(
         id=req.truck.id,
         width=req.truck.width,
         height=req.truck.height,
         depth=req.truck.depth,
-        max_weight=req.truck.max_weight
+        max_weight=req.truck.max_weight,
     )
-    print("Truck object instantiated.")
 
-    # Create list of data model instances of Box
-    boxes: Box_t = []
+    boxes: List[Box_t] = []
     for box in req.boxes:
-        internal = Box_t(
-            id=box.id,
-            width=box.width,
-            height=box.height,
-            depth=box.depth,
-            weight=box.weight,
-            priority=box.priority
+        boxes.append(
+            Box_t(
+                id=box.id,
+                width=box.width,
+                height=box.height,
+                depth=box.depth,
+                weight=box.weight,
+                priority=box.priority,
+            )
         )
-        boxes.append(internal)
-    print("Box objects instantiated.")
 
-    return (truck, boxes)
+    return truck, boxes
 
 
-def begin_pack(truck: Truck_t, boxes: List[Box_t]) -> Tuple[List[PlacedBox], List[Box], float, List[str]]:
-
-    print("Beginning packing...")
-
-    # Retain original load for future use
+def begin_pack(
+    truck: Truck_t,
+    boxes: List[Box_t],
+) -> Tuple[List[PlacedBox], List[Box], float, List[str]]:
     original_load = boxes.copy()
-    
-    packing_result = layer_pack(
+
+    placed_internal, notes = layer_pack(
         truck=truck,
-        boxes=boxes
+        boxes=boxes,
+        initial_h=Hstix.FFR # Change to test different heuristics
     )
 
-    placed: List[PlacedBox] = [PlacedBox.model_validate(p_box) for p_box in packing_result[0]]
-    unplaced: List[Box] = [Box.model_validate(box) for box in boxes]
-    utilization = get_utilization(truck, packing_result[0], original_load)
-    notes: List[str] = packing_result[1]
+    placed = [PlacedBox.model_validate(p_box) for p_box in placed_internal]
+    unplaced = [Box.model_validate(box) for box in boxes]
+    utilization = get_utilization(truck, placed_internal, original_load)
 
-    print("Packing completed.")
-
-    return (placed, unplaced, utilization, notes)
+    return placed, unplaced, utilization, notes
 
 
-test = Hstix.FFR # Test packing with a single heuristic
 
-def layer_pack(truck: Truck_t, boxes: List[Box_t], initial_h: Optional[Hstix] = None) -> Tuple[List[PlacedBox_t], List[str]]:
+def layer_pack(
+    truck: Truck_t,
+    boxes: List[Box_t],
+    initial_h: Optional[Hstix] = None
+) -> Tuple[List[PlacedBox_t], List[str]]:
 
-    z_cursor: float = 0.0
-    y_cursor: float = 0.0
-
-    use_heurisitc: Hstix = initial_h
-    if not use_heurisitc:
-        # Replace with optimization choice
-        use_heurisitc = test
+    heuristic: Hstix = initial_h
 
     placed: List[PlacedBox_t] = []
     notes: List[str] = []
-    layer_index: int = 0
 
-    while y_cursor < truck.height and boxes:
+    # Start with the full original truck as the first region.
+    regions: List[PackRegion] = [
+        PackRegion(
+            x=0.0,
+            y=0.0,
+            z=0.0,
+            width=truck.width,
+            depth=truck.depth,
+            height=truck.height,
+        )
+    ]
+
+    layer_index = 0
+
+    while boxes and regions:
+        region = regions.pop()
+
+        if region.width <= _EPS or region.depth <= _EPS or region.height <= _EPS:
+            continue
 
         initial_box_count = len(boxes)
 
-        match use_heurisitc:
+        # The next batch type is defined by the first remaining box.
+        anchor = boxes[0]
+
+        local_truck = Truck_t(
+            id=f"{truck.id}_region_{layer_index}",
+            width=region.width,
+            depth=region.depth,
+            height=region.height,
+            max_weight=truck.max_weight,
+        )
+
+        match heuristic:
             case Hstix.FFR:
                 layer_data = ff_row_pack(
-                    truck=truck,
+                    truck=local_truck,
                     boxes=boxes,
-                    layer_y=y_cursor
+                    layer_y=region.y,
                 )
-                print("Layer packed with FFR")
             case Hstix.FFG:
                 layer_data = ff_guillotine_pack(
-                    truck=truck,
+                    truck=local_truck,
                     boxes=boxes,
-                    layer_y=y_cursor
+                    layer_y=region.y,
                 )
-                print("Layer packed with FFG")
             case Hstix.MAX:
                 layer_data = maxrects_pack(
-                    truck=truck,
+                    truck=local_truck,
                     boxes=boxes,
-                    layer_y=y_cursor
+                    layer_y=region.y,
                 )
-                print("Layer packed with MaxRects")
             case Hstix.SKY:
                 layer_data = skyline_pack(
-                    truck=truck,
+                    truck=local_truck,
                     boxes=boxes,
-                    layer_y=y_cursor
+                    layer_y=region.y,
                 )
-                print("Layer packed with SkylineSort")
             case _:
-                raise ValueError(f"Invalid heuristic choice.")
-            
-        print("Layer:", layer_index)
+                raise ValueError("Invalid heuristic choice.")
 
-        if not layer_data[0]:
-            print("No boxes placed in this iteration")
-            break
+        local_placed, layer_notes, used_h, x_cursor, z_cursor = layer_data
 
-        placed.extend(layer_data[0])
-        notes.extend(layer_data[1])
-        y_cursor += layer_data[2]
+        notes.append(
+            f"Region {layer_index}: origin=({region.x:.3f}, {region.y:.3f}, {region.z:.3f}) "
+            f"size=({region.width:.3f}, {region.depth:.3f}, {region.height:.3f})"
+        )
+        notes.extend(layer_notes)
 
-        print("Truck height:", truck.height)
-        print("Height used:", y_cursor)
+        # If nothing was placed here, skip this region and continue with the next one.
+        if not local_placed:
+            notes.append("No boxes placed in this region.")
+            layer_index += 1
+            continue
+
+        # Compute local envelope before translating to absolute truck coordinates.
+        used_x, used_z = _compute_local_extents(anchor, local_placed)
+
+        # Translate x/z into absolute coordinates of the original truck.
+        _translate_placements(local_placed, region.x, region.z)
+
+        placed.extend(local_placed)
+
+        # ---------- Create child regions ----------
+
+        # 1) Above supported rectangle
+        remaining_height_above = region.height - used_h
+        if used_h > _EPS and x_cursor > _EPS and z_cursor > _EPS and remaining_height_above > _EPS:
+            regions.append(
+                PackRegion(
+                    x=region.x,
+                    y=region.y + used_h,
+                    z=region.z,
+                    width=x_cursor,
+                    depth=z_cursor,
+                    height=remaining_height_above,
+                )
+            )
+
+        # 2) Right floor remainder of the used envelope
+        remaining_right_width = region.width - used_x
+        if remaining_right_width > _EPS:
+            regions.append(
+                PackRegion(
+                    x=region.x + used_x,
+                    y=region.y,
+                    z=region.z,
+                    width=remaining_right_width,
+                    depth=region.depth,
+                    height=region.height,
+                )
+            )
+
+        # 3) Back floor remainder of the used envelope
+        remaining_back_depth = region.depth - used_z
+        if remaining_back_depth > _EPS and used_x > _EPS:
+            regions.append(
+                PackRegion(
+                    x=region.x,
+                    y=region.y,
+                    z=region.z + used_z,
+                    width=used_x,
+                    depth=remaining_back_depth,
+                    height=region.height,
+                )
+            )
 
         if len(boxes) == initial_box_count:
-            print("Box list unchanged. Breaking loop.")
-            break
+            notes.append("Box list unchanged after placing in region; continuing anyway.")
 
-        use_heurisitc = test # Replace with optimization choice
         layer_index += 1
-            
-    return [placed, notes]
+        # heuristic =  # replace later with optimization choice if needed
+
+    return placed, notes
 
 
-
-def get_utilization(truck: Truck_t, p_boxes: List[PlacedBox_t], boxes: List[Box_t]) -> float:
-
-    print("Calculating utilization...")
-
+def get_utilization(
+    truck: Truck_t,
+    p_boxes: List[PlacedBox_t],
+    boxes: List[Box_t],
+) -> float:
     box_map = {b.id: b for b in boxes}
 
     total_volume = 0.0
     for p_box in p_boxes:
         matching = box_map.get(p_box.id)
-        
         if matching is None:
-            raise ValueError(f"Placed Box could not be located in load list\n")
-        
+            raise ValueError("Placed box could not be located in original load list.")
         total_volume += matching.volume
-    
+
     return total_volume / truck.volume

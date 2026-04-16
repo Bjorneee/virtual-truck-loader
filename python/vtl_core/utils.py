@@ -1,11 +1,19 @@
 from __future__ import annotations
 
 from typing import List, Optional, Tuple
-from python.vtl_core.domain.models import Box_t
-from python.vtl_core.domain.models import FreeRectTL, SkylineSeg
+from python.vtl_core.domain.models import (
+    Box_t, 
+    PlacedBox_t, 
+    FreeRectTL, 
+    SkylineSeg,
+    Truck_t
+)
 
 
 _EPS = 1e-9
+
+HeuristicResult = Tuple[List[PlacedBox_t], List[str], float, float, float]
+
 
 
 def _fits(w: float, d: float, rect: FreeRectTL) -> bool:
@@ -439,3 +447,207 @@ def _skyline_merge(skyline: List[SkylineSeg]) -> None:
             merged.append(seg)
 
     skyline[:] = merged
+
+def _dims_from_rotation(box: Box_t, rotation: int) -> Tuple[float, float]:
+    if rotation == 1:
+        return box.depth, box.width
+    return box.width, box.depth
+
+
+def _compute_local_extents(anchor: Box_t, placed: List[PlacedBox_t]) -> Tuple[float, float]:
+    """
+    Returns the local used envelope:
+        used_x = max(x + placed_width)
+        used_z = max(z + placed_depth)
+
+    `placed` is expected to still be in local region coordinates.
+    """
+    used_x = 0.0
+    used_z = 0.0
+
+    for pb in placed:
+        w, d = _dims_from_rotation(anchor, pb.rotation)
+        used_x = max(used_x, pb.x + w)
+        used_z = max(used_z, pb.z + d)
+
+    return used_x, used_z
+
+
+def _translate_placements(placed: List[PlacedBox_t], dx: float, dz: float) -> None:
+    for pb in placed:
+        pb.x += dx
+        pb.z += dz
+
+
+def _sort_key(box: Box_t):
+    return (
+        -box.height,
+        -(box.footprint),
+        -(box.volume),
+        -(box.priority if box.priority is not None else 0.0),
+        box.id,
+    )
+
+
+def _split_same_type_prefix(boxes: List[Box_t], sort_boxes: bool) -> Tuple[List[Box_t], List[Box_t], Box_t]:
+    """
+    Returns:
+        batch     : maximal prefix of boxes equal to boxes[0]
+        remainder : all boxes after that prefix
+        anchor    : first box in batch
+    """
+    if not boxes:
+        raise ValueError("No boxes provided.")
+
+    anchor = boxes[0]
+    batch: List[Box_t] = []
+    i = 0
+
+    while i < len(boxes) and boxes[i] == anchor:
+        batch.append(boxes[i])
+        i += 1
+
+    remainder = boxes[i:]
+
+    if sort_boxes:
+        # Preserve type boundary: sort only within the same-type batch.
+        batch = sorted(batch, key=_sort_key)
+
+    return batch, remainder, anchor
+
+
+def _height_cap(truck: Truck_t, layer_height: Optional[float]) -> float:
+    """
+    truck.height is interpreted as the vertical space available for the current sub-truck.
+    layer_y is only an absolute placement coordinate and is not subtracted here.
+    """
+    if truck.width <= 0 or truck.depth <= 0 or truck.height <= 0:
+        return 0.0
+
+    if layer_height is None:
+        return truck.height
+
+    return min(layer_height, truck.height)
+
+
+def _placed_rects_from_batch(placed: List[PlacedBox_t], anchor: Box_t) -> List[Tuple[float, float, float, float]]:
+    """
+    Convert placements into footprint rects (x, z, w, d) using the batch anchor dimensions.
+    rotation:
+      0 -> (width, depth)
+      1 -> (depth, width)
+    """
+    rects: List[Tuple[float, float, float, float]] = []
+
+    for pb in placed:
+        if pb.rotation == 1:
+            w, d = anchor.depth, anchor.width
+        else:
+            w, d = anchor.width, anchor.depth
+
+        rects.append((pb.x, pb.z, w, d))
+
+    return rects
+
+
+def _largest_complete_top_left_rectangle(
+    placed_rects: List[Tuple[float, float, float, float]],
+    truck_width: float,
+    truck_depth: float,
+) -> Tuple[float, float]:
+    """
+    Returns (x_cursor, z_cursor) for the largest complete top-left-supported rectangle.
+
+    A rectangle [0, x_cursor] x [0, z_cursor] is "complete" iff every elementary cell inside
+    it is covered by placed footprints.
+    """
+    if not placed_rects:
+        return 0.0, 0.0
+
+    xs = {0.0}
+    zs = {0.0}
+
+    for x, z, w, d in placed_rects:
+        xs.add(x)
+        xs.add(x + w)
+        zs.add(z)
+        zs.add(z + d)
+
+    xs = sorted(v for v in xs if v <= truck_width + _EPS)
+    zs = sorted(v for v in zs if v <= truck_depth + _EPS)
+
+    def cell_is_covered(x0: float, x1: float, z0: float, z1: float) -> bool:
+        cx = (x0 + x1) / 2.0
+        cz = (z0 + z1) / 2.0
+
+        for rx, rz, rw, rd in placed_rects:
+            if rx - _EPS <= cx <= rx + rw + _EPS and rz - _EPS <= cz <= rz + rd + _EPS:
+                return True
+        return False
+
+    best_x = 0.0
+    best_z = 0.0
+
+    for xi in range(1, len(xs)):
+        for zi in range(1, len(zs)):
+            x_cursor = xs[xi]
+            z_cursor = zs[zi]
+
+            full = True
+            for ax in range(xi):
+                for az in range(zi):
+                    if not cell_is_covered(xs[ax], xs[ax + 1], zs[az], zs[az + 1]):
+                        full = False
+                        break
+                if not full:
+                    break
+
+            if not full:
+                continue
+
+            area = x_cursor * z_cursor
+            best_area = best_x * best_z
+
+            if area > best_area + _EPS:
+                best_x = x_cursor
+                best_z = z_cursor
+            elif abs(area - best_area) <= _EPS:
+                if x_cursor > best_x + _EPS or (
+                    abs(x_cursor - best_x) <= _EPS and z_cursor > best_z + _EPS
+                ):
+                    best_x = x_cursor
+                    best_z = z_cursor
+
+    return best_x, best_z
+
+
+def _finalize_batch_result(
+    boxes: List[Box_t],
+    batch_failures: List[Box_t],
+    remainder: List[Box_t],
+    placed: List[PlacedBox_t],
+    notes: List[str],
+    used_layer_height: float,
+    anchor: Box_t,
+    packed_by: str,
+    truck: Truck_t,
+) -> HeuristicResult:
+    """
+    Mutates boxes so that only current-batch failures + untouched remainder remain.
+    Computes complete support rectangle cursors.
+    """
+    boxes[:] = batch_failures + remainder
+
+    placed_rects = _placed_rects_from_batch(placed, anchor)
+    x_cursor, z_cursor = _largest_complete_top_left_rectangle(
+        placed_rects=placed_rects,
+        truck_width=truck.width,
+        truck_depth=truck.depth,
+    )
+
+    notes.append(
+        f"Packed by: {packed_by} | placed={len(placed)} | "
+        f"used_h={used_layer_height:.3f} | support=({x_cursor:.3f}, {z_cursor:.3f})"
+    )
+
+    return placed, notes, used_layer_height, x_cursor, z_cursor
