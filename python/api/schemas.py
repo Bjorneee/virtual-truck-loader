@@ -32,7 +32,7 @@ class PlacedBox(BaseModel):
     x: float
     y: float
     z: float
-    rotation: int  # e.g. 0–5 for orthogonal rotations
+    rotation: int # Y-axis only: 0 - not rotated, 1 - rotated
 
 class UnplacedBox(BaseModel):
     model_config = ConfigDict(from_attributes=True)

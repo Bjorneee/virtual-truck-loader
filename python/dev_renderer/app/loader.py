@@ -39,9 +39,24 @@ def spawn_truck(render, truck_data):
 
 def spawn_box(render, box_data, box_specs):
 
-    width = box_specs["width"]
+    width:  float
+    height: float
+    depth:  float
+
+    x: float
+    y: float
+    z: float
+
+    # Swap width/depth if box is rotated
+    if (box_data["rotation"]):
+        width = box_specs["depth"]
+        depth = box_specs["width"]
+
+    else:
+        width = box_specs["width"]
+        depth = box_specs["depth"]
+
     height = box_specs["height"]
-    depth = box_specs["depth"]
 
     x = box_data["x"] + width / 2
     y = box_data["y"] + height / 2
