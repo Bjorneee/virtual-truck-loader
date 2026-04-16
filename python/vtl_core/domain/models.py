@@ -121,3 +121,13 @@ class SkylineSeg:
     x: float
     z: float
     w: float
+
+
+@dataclass
+class PackRegion:
+    x: float
+    y: float
+    z: float
+    width: float
+    depth: float
+    height: float

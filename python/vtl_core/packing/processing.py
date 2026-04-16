@@ -1,10 +1,14 @@
 from typing import List, Tuple, Optional
 from enum import Enum, auto
-from dataclasses import dataclass
 
 from python.api.schemas import PackingRequest, PlacedBox, Box
-from python.vtl_core.domain.models import Truck_t, Box_t, PlacedBox_t
+from python.vtl_core.domain.models import Truck_t, Box_t, PlacedBox_t, PackRegion
 
+from python.vtl_core.utils import (
+    _dims_from_rotation,
+    _compute_local_extents,
+    _translate_placements
+)
 from python.vtl_core.packing.heurisitics import (
     ff_row_pack,
     ff_guillotine_pack,
@@ -13,7 +17,6 @@ from python.vtl_core.packing.heurisitics import (
 )
 
 _EPS = 1e-9
-
 
 class Hstix(Enum):
     FFR = auto()
@@ -56,6 +59,7 @@ def begin_pack(
     placed_internal, notes = layer_pack(
         truck=truck,
         boxes=boxes,
+        initial_h=Hstix.FFR # Change to test different heuristics
     )
 
     placed = [PlacedBox.model_validate(p_box) for p_box in placed_internal]
@@ -65,48 +69,6 @@ def begin_pack(
     return placed, unplaced, utilization, notes
 
 
-test = Hstix.FFR
-
-@dataclass
-class PackRegion:
-    x: float
-    y: float
-    z: float
-    width: float
-    depth: float
-    height: float
-
-
-def _dims_from_rotation(box: Box_t, rotation: int) -> Tuple[float, float]:
-    if rotation == 1:
-        return box.depth, box.width
-    return box.width, box.depth
-
-
-def _compute_local_extents(anchor: Box_t, placed: List[PlacedBox_t]) -> Tuple[float, float]:
-    """
-    Returns the local used envelope:
-        used_x = max(x + placed_width)
-        used_z = max(z + placed_depth)
-
-    `placed` is expected to still be in local region coordinates.
-    """
-    used_x = 0.0
-    used_z = 0.0
-
-    for pb in placed:
-        w, d = _dims_from_rotation(anchor, pb.rotation)
-        used_x = max(used_x, pb.x + w)
-        used_z = max(used_z, pb.z + d)
-
-    return used_x, used_z
-
-
-def _translate_placements(placed: List[PlacedBox_t], dx: float, dz: float) -> None:
-    for pb in placed:
-        pb.x += dx
-        pb.z += dz
-
 
 def layer_pack(
     truck: Truck_t,
@@ -114,7 +76,7 @@ def layer_pack(
     initial_h: Optional[Hstix] = None
 ) -> Tuple[List[PlacedBox_t], List[str]]:
 
-    heuristic: Hstix = initial_h or test
+    heuristic: Hstix = initial_h
 
     placed: List[PlacedBox_t] = []
     notes: List[str] = []
@@ -250,7 +212,7 @@ def layer_pack(
             notes.append("Box list unchanged after placing in region; continuing anyway.")
 
         layer_index += 1
-        heuristic = test  # replace later with optimization choice if needed
+        # heuristic =  # replace later with optimization choice if needed
 
     return placed, notes
 
