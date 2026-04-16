@@ -586,17 +586,17 @@ public class UIManager : MonoBehaviour
 
         // 1. Scale the Solid Floor (Always thin)
         truckFloorObject.transform.localScale = new Vector3(l, 0.1f, w);
-        // Keep the floor at Y = 0
-        truckFloorObject.transform.position = new Vector3(0, 0, 0);
+        // Keep the back-left corner at Y = 0
+        truckFloorObject.transform.position = new Vector3(l/2, 0, w/2);
 
         // 2. Scale the Glass Volume (Uses Height)
         if (truckVolumeObject != null)
         {
-            truckVolumeObject.transform.localScale = new Vector3(l, h, w);
+            truckVolumeObject.transform.localScale = new Vector3((l + 0.01f), (h + 0.01f), (w + 0.01f));
 
             // Unity scales from the center. If height is 10, it goes 5 up and 5 down.
             // We move it up by (Height / 2) so the bottom of the glass touches the floor.
-            truckVolumeObject.transform.position = new Vector3(0, h / 2f, 0);
+            truckVolumeObject.transform.position = new Vector3(l/2, h / 2f, w/2);
         }
     }
     private void RemoveItem(CargoItem itemToRemove)
