@@ -424,6 +424,7 @@ public class UIManager : MonoBehaviour
             height = item.Height,
             depth = item.Length,
             weight = item.Weight,
+            rotatable = true,
             priority = 0f
         });
 
@@ -435,9 +436,15 @@ public class UIManager : MonoBehaviour
 
     private void OnSortClicked()
     {
+        if (backendClient == null || !backendClient.IsBackendReady)
+        {
+        Debug.LogWarning("Backend is not ready yet.");
+        return;
+        }
+        
         PackingRequest request = BuildPackingRequest();
         StartCoroutine(backendClient.SendPackRequest(
-            request,
+            BuildPackingRequest(),
             OnPackSuccess,
             OnPackError
         ));
@@ -487,13 +494,21 @@ public class UIManager : MonoBehaviour
                     continue;
                 }
 
+                bool rotated = placed.rotation == 1;
+
+                float halfX = rotated ? item.Width / 2f : item.Length / 2f;
+                float halfZ = rotated ? item.Length / 2f : item.Width / 2f;
+
+                // backend: x = width axis, z = depth axis
+                // unity:   z = width axis, x = length/depth axis
                 Vector3 newPos = new Vector3(
-                    placed.x + item.Width / 2f,
+                    placed.z + halfX,
                     placed.y + item.Height / 2f,
-                    placed.z + item.Length / 2f
+                    placed.x + halfZ
                 );
 
                 item.Position = newPos;
+                item.Rotation = rotated ? Quaternion.Euler(0f, 90f, 0f) : Quaternion.identity;
 
                 if (_itemObjects.TryGetValue(placed.id, out GameObject existingBox) && existingBox != null)
                 {
@@ -505,16 +520,11 @@ public class UIManager : MonoBehaviour
                 }
 
                 Debug.Log($"Placed {placed.id} at {newPos}, rotation={placed.rotation}");
+                if (_itemObjects.TryGetValue(placed.id, out GameObject spawned) && spawned != null)
+                    spawned.transform.rotation = item.Rotation;
             }
         }
 
-        if (response.unplaced != null)
-        {
-            foreach (var unplaced in response.unplaced)
-            {
-                Debug.LogWarning($"Unplaced box: {unplaced.id}");
-            }
-        }
 
         Debug.Log($"Packing complete. Utilization={response.utilization}, runtime_ms={response.runtime_ms}, notes={response.notes}");
     }
@@ -576,17 +586,17 @@ public class UIManager : MonoBehaviour
 
         // 1. Scale the Solid Floor (Always thin)
         truckFloorObject.transform.localScale = new Vector3(l, 0.1f, w);
-        // Keep the floor at Y = 0
-        truckFloorObject.transform.position = new Vector3(0, 0, 0);
+        // Keep the back-left corner at Y = 0
+        truckFloorObject.transform.position = new Vector3(l/2, 0, w/2);
 
         // 2. Scale the Glass Volume (Uses Height)
         if (truckVolumeObject != null)
         {
-            truckVolumeObject.transform.localScale = new Vector3(l, h, w);
+            truckVolumeObject.transform.localScale = new Vector3((l + 0.01f), (h + 0.01f), (w + 0.01f));
 
             // Unity scales from the center. If height is 10, it goes 5 up and 5 down.
             // We move it up by (Height / 2) so the bottom of the glass touches the floor.
-            truckVolumeObject.transform.position = new Vector3(0, h / 2f, 0);
+            truckVolumeObject.transform.position = new Vector3(l/2, h / 2f, w/2);
         }
     }
     private void RemoveItem(CargoItem itemToRemove)
@@ -801,6 +811,12 @@ public class UIManager : MonoBehaviour
     }
     private void OnGenerateClicked()
     {
+        if (backendClient == null || !backendClient.IsBackendReady)
+        {
+        Debug.LogWarning("Backend is not ready yet.");
+        return;
+        }
+
         // Prevent clicking if there are no boxes
         if (_inventory.Count == 0)
         {

@@ -11,11 +11,13 @@ using Debug = UnityEngine.Debug;
 public class PackingBackendClient : MonoBehaviour
 {
     [Header("Server")]
-    [SerializeField] private string baseUrl = "http://127.0.0.1:8000/";
-    [SerializeField] private string workingDirectory; // e.g. C:/Projects/VTL
+    [SerializeField] private string baseUrl = "http://127.0.0.1:8000";
+    [SerializeField] private string pythonExecutable = "python";
+    [SerializeField] private string workingDirectory = "";
     [SerializeField] private bool autoStartServer = true;
 
     private Process _serverProcess;
+    public bool IsBackendReady {get; private set; }
 
     private void Awake()
     {
@@ -53,15 +55,16 @@ public class PackingBackendClient : MonoBehaviour
         {
             var startInfo = new ProcessStartInfo
             {
-                FileName = "cmd.exe",
-                Arguments = "/c uvicorn python.api.main:app --reload",
+                FileName = pythonExecutable,
+                Arguments = "-m uvicorn python.api.main:app --host 127.0.0.1 --port 8000",
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
-                WorkingDirectory = string.IsNullOrWhiteSpace(workingDirectory)
-                    ? Directory.GetCurrentDirectory()
-                    : workingDirectory
+                // WorkingDirectory = string.IsNullOrWhiteSpace(workingDirectory)
+                //     ? Directory.GetCurrentDirectory()
+                //     : workingDirectory
+                WorkingDirectory = workingDirectory,
             };
 
             _serverProcess = new Process();
@@ -109,36 +112,18 @@ public class PackingBackendClient : MonoBehaviour
         }
     }
 
-    public IEnumerator CheckHealth(Action<bool> onDone = null)
+    public IEnumerator WaitForHealthThenLog()//CheckHealth(Action<bool> onDone = null)
     {
-        using var req = UnityWebRequest.Get(baseUrl + "/health");
-        yield return req.SendWebRequest();
-
-        bool ok = req.result == UnityWebRequest.Result.Success && req.responseCode == 200;
-        if (!ok)
-            Debug.LogWarning("Health check failed: " + req.error);
-
-        onDone?.Invoke(ok);
-    }
-
-    private IEnumerator WaitForHealthThenLog()
-    {
+        IsBackendReady = false;
         const float timeoutSeconds = 10f;
         float elapsed = 0f;
 
-        while (elapsed < timeoutSeconds)
-        {
-            bool done = false;
-            bool ok = false;
-
-            yield return CheckHealth(result =>
-            {
-                ok = result;
-                done = true;
-            });
-
-            if (done && ok)
-            {
+        while (elapsed < timeoutSeconds){
+            using var req = UnityWebRequest.Get($"{baseUrl.TrimEnd('/')}/health");
+            yield return req.SendWebRequest();
+        
+        if(req.result == UnityWebRequest.Result.Success && req.responseCode == 200){
+            IsBackendReady = true;
                 Debug.Log("Backend is healthy.");
                 yield break;
             }
@@ -157,7 +142,7 @@ public class PackingBackendClient : MonoBehaviour
 
         byte[] bodyRaw = Encoding.UTF8.GetBytes(json);
 
-        using var req = new UnityWebRequest(baseUrl + "/pack", "POST");
+        using var req = new UnityWebRequest($"{baseUrl.TrimEnd('/')}/pack", "POST");
         req.uploadHandler = new UploadHandlerRaw(bodyRaw);
         req.downloadHandler = new DownloadHandlerBuffer();
         req.SetRequestHeader("Content-Type", "application/json");

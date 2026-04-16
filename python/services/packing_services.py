@@ -1,6 +1,6 @@
 import time
 
-from python.api.schemas import PackingRequest, PackingResponse
+from python.api.schemas import PackingRequest, PackingResponse, UnplacedBox
 from python.vtl_core.packing import processing as Proc
 
 def run_packing(req: PackingRequest) -> PackingResponse:
@@ -22,8 +22,8 @@ def run_packing(req: PackingRequest) -> PackingResponse:
 
     return PackingResponse(
         placed=placed,
-        unplaced=unplaced,
+        unplaced=[UnplacedBox(id=box.id, reason= box.reason) for box in unplaced],
         utilization=utilization,
         runtime_ms=runtime_ms,
-        notes=notes
+        notes= "; ".join(notes) if isinstance(notes,list) else str(notes)
     )
