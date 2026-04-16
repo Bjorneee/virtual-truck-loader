@@ -34,11 +34,6 @@ class PlacedBox(BaseModel):
     z: float
     rotation: int # Y-axis only: 0 - not rotated, 1 - rotated
 
-class UnplacedBox(BaseModel):
-    model_config = ConfigDict(from_attributes=True)
-
-    id: str # e.g. "too large", "exceeds weight limit", etc.
-
 class PackingResponse(BaseModel):
     placed: Optional[List[PlacedBox]]
     unplaced: Optional[List[Box]]
