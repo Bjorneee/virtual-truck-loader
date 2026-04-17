@@ -139,3 +139,25 @@ Rigidbody:
   m_Interpolate: 0
   m_Constraints: 0
   m_CollisionDetection: 0
+--- !u!114 &6568759412640011182
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 720896692909411615}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1da527dcb6364d94fa9deec34f21312c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: '::'
+  draggableMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  snapTargetMask:
+    serializedVersion: 2
+    m_Bits: 4294967295
+  hoverRayLength: 500
+  snapToTopOfBoxes: 1
+  snapXZToGrid: 0
+  gridSizeXZ: {x: 2.5, y: 2.5}
