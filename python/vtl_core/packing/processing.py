@@ -1,13 +1,12 @@
 import time
 import copy
-from typing import List, Tuple, Optional, Dict, Any
+from typing import List, Tuple, Dict, Any
 from enum import Enum, auto
 
 from python.api.schemas import PackingRequest, PlacedBox, Box
 from python.vtl_core.domain.models import Truck_t, Box_t, PlacedBox_t, PackRegion
 
 from python.vtl_core.utils import (
-    _dims_from_rotation,
     _compute_local_extents,
     _translate_placements
 )
@@ -87,7 +86,7 @@ def get_best_heuristic_for_region(current_truck: Truck_t, current_batch: List[Bo
             if score_data["total_score"] > best_score:
                 best_score = score_data["total_score"]
                 best_algo = algo_enum
-        except Exception as e:
+        except Exception:
             continue
 
     return best_algo

@@ -8,7 +8,6 @@ from panda3d.core import (
     NodePath,
 )
 
-
 def create_box(width, height, depth):
     hx = width / 2.0
     hy = height / 2.0
@@ -65,18 +64,6 @@ def create_box(width, height, depth):
     node.addGeom(geom)
 
     return NodePath(node)
-
-
-from panda3d.core import (
-    Geom,
-    GeomNode,
-    GeomLines,
-    GeomVertexData,
-    GeomVertexFormat,
-    GeomVertexWriter,
-    NodePath,
-)
-
 
 def create_box_outline(width, height, depth):
     hx = width / 2.0

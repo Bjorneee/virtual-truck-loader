@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from python.vtl_core.domain.models import Box_t, PlacedBox_t, Truck_t
 from python.vtl_core.domain.models import FreeRectTL, SkylineSeg

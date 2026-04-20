@@ -1,6 +1,4 @@
 from panda3d.core import AmbientLight, DirectionalLight, Point3
-from vconfig import AMBIENT_COLOR, SUN_COLOR, SUN_HPR
-
 
 def setup_lighting(render):
     ambient = AmbientLight("ambient")

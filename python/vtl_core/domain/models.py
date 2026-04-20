@@ -1,5 +1,5 @@
-from dataclasses import dataclass, field
-from typing import Literal, Optional, List
+from dataclasses import dataclass
+from typing import Literal, Optional
 
 @dataclass
 class Box_t:

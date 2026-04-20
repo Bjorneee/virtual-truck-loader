@@ -93,7 +93,7 @@ def load_boxes(render, boxes, box_specs):
 
         matching = box_map.get(b["id"])
         if matching is None:
-            raise ValueError(f"Response Box cannot be mapped to a valid request box\n")
+            raise ValueError("Response Box cannot be mapped to a valid request box\n")
         
         node = spawn_box(render, b, matching)
         nodes.append(node)

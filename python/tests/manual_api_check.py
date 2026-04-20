@@ -1,5 +1,4 @@
 import requests
-import json
 
 def run_multi_size_test():
     url = "http://127.0.0.1:8000/pack"
