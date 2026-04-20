@@ -11,15 +11,16 @@ python-dotenv
 # Data processing
 # -----------------------------
 numpy
-pandas
-scipy
-
-# -----------------------------
-# Optimization
-# -----------------------------
-ortools
 
 # -----------------------------
 # Panda3D Renderer
 # -----------------------------
 panda3d
+
+
+# -----------------------------
+# Testing
+# -----------------------------
+pytest
+httpx
+pytest-cov
