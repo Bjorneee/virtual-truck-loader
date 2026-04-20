@@ -34,7 +34,6 @@ def create_instances(req: PackingRequest) -> Tuple[Truck_t, List[Box_t]]:
         height=req.truck.height,
         depth=req.truck.depth,
         max_weight=req.truck.max_weight,
-        max_weight=req.truck.max_weight,
     )
 
     boxes: List[Box_t] = []
@@ -59,7 +58,7 @@ def get_best_heuristic_for_region(current_truck: Truck_t, current_batch: List[Bo
     """
     engine = ScoringEngine(current_truck)
     best_score = -1.0
-    best_algo = Hstix.FFR # Default
+    best_algo = Hstix.FFG # Default
 
     heuristics = {
         Hstix.FFR: ff_row_pack,
