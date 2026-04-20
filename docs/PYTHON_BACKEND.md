@@ -9,27 +9,70 @@ The Python backend provides:
 
 ## Folder Structure
 python/  
-├─ api/  
-│ ├─ main.py  
-│ ├─ routes.py  
-│ ├─ config.py  
-│ └─ schemas.py  
-├─ dev_renderer/  
-├─ services/  
-│ └─ packing_services.py  
-├─ vtl_core/  
-│ ├─ domain/  
-│ │ └─ models.py  
-│ ├─ optimization/  
-│ ├─ packing/  
-│ │ ├─ heuristics.py  
-│ │ └─ processing.py  
-│ └─ utils.py  
-├─ tests/  
-│ ├─ test_load.json  
-│ ├─ large_load.json  
-│ └─ axis_test.json  
-└─ requirements.txt  
+│   dev-requirements.txt
+│   README.md
+│   requirements.txt
+│
+├───api
+│   │   config.py
+│   │   logging.py
+│   │   main.py
+│   │   routes.py
+│   └── schemas.py
+│
+├───dev_renderer
+│   │   main.py
+│   │   vconfig.py
+│   │
+│   ├───app
+│   │   │   api_client.py
+│   │   │   loader.py
+│   │   └── viewer.py
+│   │
+│   ├───camera
+│   │   └──camera.py
+│   │
+│   ├───scene
+│   │   │   grid.py
+│   │   │   ground.py
+│   │   │   lighting.py
+│   │   └── primitives.py
+│   │
+│   └───utils
+│       │   helpers.py
+│       └── json_loader.py
+│
+├───services
+│   └── packing_services.py
+│
+├───tests
+│   │   0_axis.json
+│   │   10_many_small.json
+│   │   11_fragmentation.json
+│   │   12_flat.json
+│   │   13_single_type.json
+│   │   1_simple.json
+│   │   2_many.json
+│   │   3_warehouse.json
+│   │   4_small_med.json
+│   │   5_furniture.json
+│   │   6_dense.json
+│   │   7_perfect_tile.json
+│   │   8_oversized.json
+│   └── 9_tall_skinny.json
+│
+└───vtl_core
+    │   utils.py
+    │
+    ├───domain
+    │   └──   models.py
+    │
+    └───packing
+        │   heurisitics.py
+        │   processing.py
+        └── scoring.py
+
+
 
 ## API Entrypoint
 `api/main.py`

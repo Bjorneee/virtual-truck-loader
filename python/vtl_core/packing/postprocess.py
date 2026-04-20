@@ -1,1 +1,0 @@
-# Compaction, repari, validation, solution cleanup
