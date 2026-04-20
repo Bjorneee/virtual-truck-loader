@@ -4,7 +4,7 @@ using System.Collections.Generic;
 [System.Serializable]
 public class CargoItem
 {
-    public string Id;
+    public string Id; // Teammate's API uses this to track specific boxes
     public string Name;
     public float Length;
     public float Width;
@@ -12,12 +12,17 @@ public class CargoItem
     public float Weight;
     public bool IsStackable;
 
-    public string GroupName; // NEW: Track the category
+    public string GroupName;
     public Color DisplayColor;
 
+    // FIX: Capitalized to match your teammate's code exactly!
+    public Vector3 Position;
+    public Quaternion Rotation;
+
+    // Constructor
     public CargoItem(string name, float l, float w, float h, float weight, bool stackable, string groupName)
     {
-        Id = System.Guid.NewGuid().ToString();
+        Id = System.Guid.NewGuid().ToString(); // Generate a random unique ID for the API
         Name = name;
         Length = l;
         Width = w;
@@ -26,11 +31,10 @@ public class CargoItem
         IsStackable = stackable;
         GroupName = groupName;
 
-        // Assign color based on the group!
         DisplayColor = GetColorForGroup(groupName);
     }
 
-    // Helper function to keep colors consistent
+    // Helper function for colors
     public static Color GetColorForGroup(string group)
     {
         switch (group)
@@ -50,9 +54,74 @@ public class InventoryData
     public float TruckLength;
     public float TruckWidth;
     public float TruckHeight;
-    // NEW: API Settings
+
+    // API Settings
     public string AlgorithmPreference;
     public int MaxCalculationTime;
 
     public List<CargoItem> items;
+}
+[System.Serializable]
+public class API_Truck
+{
+    public string id = "truck_01";
+    public float width;   // Python expects 'width'
+    public float height;  // Python expects 'height'
+    public float depth;   // Python expects 'depth'
+}
+
+[System.Serializable]
+public class API_Box
+{
+    public string id;
+    public float width;
+    public float height;
+    public float depth;
+    public float weight;
+}
+
+[System.Serializable]
+public class API_PackingRequest
+{
+    public API_Truck truck;
+    public List<API_Box> boxes;
+}
+
+[System.Serializable]
+public class PackResponseItem
+{
+    public string id;
+    public float x;
+    public float y;
+    public float z;
+    public int rotation;
+}
+
+[System.Serializable]
+public class PackResponseData
+{
+    public List<PackResponseItem> placed;
+    public List<PackResponseItem> unplaced;
+    public float utilization;
+    public float runtime_ms;
+    public List<string> notes;
+}
+
+[System.Serializable]
+public class PackRequestItem
+{
+    public string Id;
+    public float Length;
+    public float Width;
+    public float Height;
+    public float Weight;
+}
+
+[System.Serializable]
+public class PackRequestData
+{
+    public float TruckLength;
+    public float TruckWidth;
+    public float TruckHeight;
+    public List<PackRequestItem> items;
 }

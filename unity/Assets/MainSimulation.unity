@@ -223,7 +223,8 @@ MonoBehaviour:
   itemRowTemplate: {fileID: 9197481963319205126, guid: 5d188373dafb3cc459ee6baca8f65ad8, type: 3}
   boxPrefab: {fileID: 720896692909411615, guid: 3cc783c0ec6690c43bdb6d2bfa815692, type: 3}
   spawnLocation: {fileID: 0}
-  truckBedObject: {fileID: 802097226}
+  truckFloorObject: {fileID: 802097226}
+  truckVolumeObject: {fileID: 1137364340}
   mainCamera: {fileID: 709090945}
   isoPos: {x: -4.689861, y: 6.117336, z: 0.2552629}
   isoRot: {x: 37.106, y: 48.004, z: 0.002}
@@ -232,8 +233,6 @@ MonoBehaviour:
   sidePos: {x: -5.949642, y: 2.527833, z: 5.504837}
   sideRot: {x: 2.385, y: 89.944, z: 0.01}
   cameraControl: {fileID: 709090947}
-  truckFloorObject: {fileID: 802097226}
-  truckVolumeObject: {fileID: 1137364340}
   previewSpawnPoint: {fileID: 1183065997}
 --- !u!1 &492573467
 GameObject:
@@ -531,7 +530,7 @@ GameObject:
   - component: {fileID: 802097229}
   - component: {fileID: 802097228}
   - component: {fileID: 802097227}
-  m_Layer: 0
+  m_Layer: 2
   m_Name: TruckFloor
   m_TagString: Untagged
   m_Icon: {fileID: 0}
@@ -641,7 +640,7 @@ GameObject:
   - component: {fileID: 1137364341}
   - component: {fileID: 1137364343}
   - component: {fileID: 1137364342}
-  m_Layer: 0
+  m_Layer: 2
   m_Name: TruckVolume
   m_TagString: Untagged
   m_Icon: {fileID: 0}
