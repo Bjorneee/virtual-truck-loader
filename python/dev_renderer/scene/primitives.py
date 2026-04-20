@@ -1,6 +1,7 @@
 from panda3d.core import (
     Geom,
     GeomNode,
+    GeomLines,
     GeomTriangles,
     GeomVertexData,
     GeomVertexFormat,
