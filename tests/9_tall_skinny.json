@@ -1,0 +1,24 @@
+{
+  "truck": {
+    "id": "Tall_Skinny",
+    "width": 2.2,
+    "height": 2.7,
+    "depth": 9.0,
+    "max_weight": 6000
+  },
+  "boxes": [
+    {"id": "TS01", "width": 0.3, "height": 2.4, "depth": 0.4, "weight": 18, "priority": 8},
+    {"id": "TS02", "width": 0.3, "height": 2.4, "depth": 0.4, "weight": 18, "priority": 8},
+    {"id": "TS03", "width": 0.3, "height": 2.4, "depth": 0.4, "weight": 18, "priority": 8},
+    {"id": "TS04", "width": 0.3, "height": 2.4, "depth": 0.4, "weight": 18, "priority": 8},
+
+    {"id": "BASE01", "width": 1.0, "height": 0.5, "depth": 1.2, "weight": 60, "priority": 3},
+    {"id": "BASE02", "width": 1.0, "height": 0.5, "depth": 1.2, "weight": 60, "priority": 3},
+    {"id": "BASE03", "width": 1.0, "height": 0.5, "depth": 1.2, "weight": 60, "priority": 3},
+
+    {"id": "FILL01", "width": 0.5, "height": 0.4, "depth": 0.6, "weight": 12, "priority": 1},
+    {"id": "FILL02", "width": 0.5, "height": 0.4, "depth": 0.6, "weight": 12, "priority": 1},
+    {"id": "FILL03", "width": 0.5, "height": 0.4, "depth": 0.6, "weight": 12, "priority": 1},
+    {"id": "FILL04", "width": 0.5, "height": 0.4, "depth": 0.6, "weight": 12, "priority": 1}
+  ]
+}
