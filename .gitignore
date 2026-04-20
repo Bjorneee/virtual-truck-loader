@@ -108,3 +108,11 @@ __pycache__/
 .env
 
 .vscode
+
+# Python build artifacts
+dist/
+build/
+*.spec
+
+# Unity builds
+Build/

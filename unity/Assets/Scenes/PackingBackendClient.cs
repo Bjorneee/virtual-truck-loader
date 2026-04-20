@@ -6,25 +6,39 @@ using System.IO;
 using System.Text;
 using UnityEngine;
 using UnityEngine.Networking;
+using static System.Net.Mime.MediaTypeNames;
 using Debug = UnityEngine.Debug;
 
 public class PackingBackendClient : MonoBehaviour
 {
     [Header("Server")]
     [SerializeField] private string baseUrl = "http://127.0.0.1:8000";
-    [SerializeField] private string pythonExecutable = "python";
-    [SerializeField] private string workingDirectory = "";
+    [SerializeField] private string backendRelativePath = @"backend\backend.exe";
     [SerializeField] private bool autoStartServer = true;
 
     private Process _serverProcess;
-    public bool IsBackendReady {get; private set; }
+    private string _backendExePath;
+    private string _backendWorkingDirectory;
+
+    public bool IsBackendReady { get; private set; }
 
     private void Awake()
     {
-        workingDirectory = Path.GetFullPath(
-            Path.Combine(Application.dataPath, "../../"));
+#if UNITY_EDITOR
+        // In Editor, use the Unity project root as the base
+        string projectRoot = Directory.GetCurrentDirectory();
+        _backendExePath = Path.GetFullPath(Path.Combine(projectRoot, "../dist/backend/backend.exe"));
+#else
+        // In a build, Application.dataPath points to VTL_Data
+        // Parent folder is the folder containing VTL.exe
+        string buildRoot = Directory.GetParent(UnityEngine.Application.dataPath).FullName;
+        _backendExePath = Path.GetFullPath(Path.Combine(buildRoot, backendRelativePath));
+#endif
 
-        Debug.Log("Resolved working directory: " + workingDirectory);
+        _backendWorkingDirectory = Path.GetDirectoryName(_backendExePath);
+
+        Debug.Log("Resolved backend exe path: " + _backendExePath);
+        Debug.Log("Resolved backend working directory: " + _backendWorkingDirectory);
     }
 
     private void Start()
@@ -44,10 +58,16 @@ public class PackingBackendClient : MonoBehaviour
     public void StartBackendServer()
     {
         Debug.Log("Starting local server...");
-        Debug.Log("Current working directory: " + workingDirectory);
+
         if (_serverProcess != null && !_serverProcess.HasExited)
         {
             Debug.Log("Backend server already running.");
+            return;
+        }
+
+        if (!File.Exists(_backendExePath))
+        {
+            Debug.LogError("backend.exe not found at: " + _backendExePath);
             return;
         }
 
@@ -55,25 +75,24 @@ public class PackingBackendClient : MonoBehaviour
         {
             var startInfo = new ProcessStartInfo
             {
-                FileName = pythonExecutable,
-                Arguments = "-m uvicorn python.api.main:app --host 127.0.0.1 --port 8000",
+                FileName = _backendExePath,
+                Arguments = "",
                 UseShellExecute = false,
                 CreateNoWindow = true,
                 RedirectStandardOutput = true,
                 RedirectStandardError = true,
-                // WorkingDirectory = string.IsNullOrWhiteSpace(workingDirectory)
-                //     ? Directory.GetCurrentDirectory()
-                //     : workingDirectory
-                WorkingDirectory = workingDirectory,
+                WorkingDirectory = _backendWorkingDirectory,
             };
 
             _serverProcess = new Process();
             _serverProcess.StartInfo = startInfo;
+
             _serverProcess.OutputDataReceived += (sender, args) =>
             {
                 if (!string.IsNullOrEmpty(args.Data))
                     Debug.Log("[FastAPI] " + args.Data);
             };
+
             _serverProcess.ErrorDataReceived += (sender, args) =>
             {
                 if (!string.IsNullOrEmpty(args.Data))
@@ -85,12 +104,12 @@ public class PackingBackendClient : MonoBehaviour
             _serverProcess.BeginErrorReadLine();
 
             Debug.Log("Started FastAPI backend process.");
-            Debug.Log("Args: " + _serverProcess.StartInfo.Arguments);
+            Debug.Log("Exe: " + _serverProcess.StartInfo.FileName);
             Debug.Log("Dir: " + _serverProcess.StartInfo.WorkingDirectory);
         }
         catch (Exception ex)
         {
-            Debug.LogError("Failed to start backend server: " + ex.Message);
+            Debug.LogError("Failed to start backend server: " + ex);
         }
     }
 
@@ -112,18 +131,20 @@ public class PackingBackendClient : MonoBehaviour
         }
     }
 
-    public IEnumerator WaitForHealthThenLog()//CheckHealth(Action<bool> onDone = null)
+    public IEnumerator WaitForHealthThenLog()
     {
         IsBackendReady = false;
         const float timeoutSeconds = 10f;
         float elapsed = 0f;
 
-        while (elapsed < timeoutSeconds){
+        while (elapsed < timeoutSeconds)
+        {
             using var req = UnityWebRequest.Get($"{baseUrl.TrimEnd('/')}/health");
             yield return req.SendWebRequest();
-        
-        if(req.result == UnityWebRequest.Result.Success && req.responseCode == 200){
-            IsBackendReady = true;
+
+            if (req.result == UnityWebRequest.Result.Success && req.responseCode == 200)
+            {
+                IsBackendReady = true;
                 Debug.Log("Backend is healthy.");
                 yield break;
             }
@@ -223,5 +244,5 @@ public class PackingResponse
     public List<BoxData> unplaced;
     public float utilization;
     public float runtime_ms;
-    public string notes;
+    public List<string> notes;
 }
