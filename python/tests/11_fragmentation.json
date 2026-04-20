@@ -1,0 +1,24 @@
+{
+  "truck": {
+    "id": "Fragmentation",
+    "width": 2.3,
+    "height": 2.4,
+    "depth": 7.3,
+    "max_weight": 6000
+  },
+  "boxes": [
+    {"id": "FRA01", "width": 1.1, "height": 0.8, "depth": 2.4, "weight": 45, "priority": 4},
+    {"id": "FRA02", "width": 1.1, "height": 0.8, "depth": 2.4, "weight": 45, "priority": 4},
+    {"id": "FRA03", "width": 1.1, "height": 0.8, "depth": 2.4, "weight": 45, "priority": 4},
+
+    {"id": "FRA04", "width": 0.55, "height": 0.8, "depth": 1.2, "weight": 20, "priority": 3},
+    {"id": "FRA05", "width": 0.55, "height": 0.8, "depth": 1.2, "weight": 20, "priority": 3},
+    {"id": "FRA06", "width": 0.55, "height": 0.8, "depth": 1.2, "weight": 20, "priority": 3},
+    {"id": "FRA07", "width": 0.55, "height": 0.8, "depth": 1.2, "weight": 20, "priority": 3},
+
+    {"id": "FRA08", "width": 0.7, "height": 0.6, "depth": 0.7, "weight": 14, "priority": 2},
+    {"id": "FRA09", "width": 0.7, "height": 0.6, "depth": 0.7, "weight": 14, "priority": 2},
+    {"id": "FRA10", "width": 0.7, "height": 0.6, "depth": 0.7, "weight": 14, "priority": 2},
+    {"id": "FRA11", "width": 0.7, "height": 0.6, "depth": 0.7, "weight": 14, "priority": 2}
+  ]
+}

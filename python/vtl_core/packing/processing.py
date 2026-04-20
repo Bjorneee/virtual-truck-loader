@@ -34,6 +34,7 @@ def create_instances(req: PackingRequest) -> Tuple[Truck_t, List[Box_t]]:
         height=req.truck.height,
         depth=req.truck.depth,
         max_weight=req.truck.max_weight,
+        max_weight=req.truck.max_weight,
     )
 
     boxes: List[Box_t] = []
