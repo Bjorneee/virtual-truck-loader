@@ -184,6 +184,7 @@ public class TruckData
     public float width;
     public float height;
     public float depth;
+    public float max_weight;
 }
 
 [Serializable]
@@ -216,16 +217,10 @@ public class PlacedBox
 }
 
 [Serializable]
-public class UnplacedBox
-{
-    public string id;
-}
-
-[Serializable]
 public class PackingResponse
 {
     public List<PlacedBox> placed;
-    public List<UnplacedBox> unplaced;
+    public List<BoxData> unplaced;
     public float utilization;
     public float runtime_ms;
     public string notes;
