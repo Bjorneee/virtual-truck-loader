@@ -1,0 +1,23 @@
+{
+  "truck": {
+    "id": "truck_edge_07_flat_panels",
+    "width": 2.4,
+    "height": 2.5,
+    "depth": 8.0,
+    "max_weight": 5000
+  },
+  "boxes": [
+    {"id": "PANEL01", "width": 1.2, "height": 0.1, "depth": 2.2, "weight": 22, "priority": 5},
+    {"id": "PANEL02", "width": 1.2, "height": 0.1, "depth": 2.2, "weight": 22, "priority": 5},
+    {"id": "PANEL03", "width": 1.2, "height": 0.1, "depth": 2.2, "weight": 22, "priority": 5},
+    {"id": "PANEL04", "width": 1.2, "height": 0.1, "depth": 2.2, "weight": 22, "priority": 5},
+
+    {"id": "CORE01", "width": 1.0, "height": 1.2, "depth": 1.0, "weight": 55, "priority": 3},
+    {"id": "CORE02", "width": 1.0, "height": 1.2, "depth": 1.0, "weight": 55, "priority": 3},
+
+    {"id": "FILL01", "width": 0.4, "height": 0.4, "depth": 0.5, "weight": 8, "priority": 1},
+    {"id": "FILL02", "width": 0.4, "height": 0.4, "depth": 0.5, "weight": 8, "priority": 1},
+    {"id": "FILL03", "width": 0.4, "height": 0.4, "depth": 0.5, "weight": 8, "priority": 1},
+    {"id": "FILL04", "width": 0.4, "height": 0.4, "depth": 0.5, "weight": 8, "priority": 1}
+  ]
+}
