@@ -1,4 +1,6 @@
-from typing import List, Tuple, Optional
+import time
+import copy
+from typing import List, Tuple, Optional, Dict, Any
 from enum import Enum, auto
 
 from python.api.schemas import PackingRequest, PlacedBox, Box
@@ -15,6 +17,7 @@ from python.vtl_core.packing.heurisitics import (
     maxrects_pack,
     skyline_pack,
 )
+from python.vtl_core.packing.scoring import ScoringEngine
 
 _EPS = 1e-9
 
@@ -23,7 +26,6 @@ class Hstix(Enum):
     FFG = auto()
     MAX = auto()
     SKY = auto()
-
 
 def create_instances(req: PackingRequest) -> Tuple[Truck_t, List[Box_t]]:
     truck = Truck_t(
@@ -49,34 +51,84 @@ def create_instances(req: PackingRequest) -> Tuple[Truck_t, List[Box_t]]:
 
     return truck, boxes
 
+def get_best_heuristic_for_region(current_truck: Truck_t, current_batch: List[Box_t], region: PackRegion) -> Hstix:
+    """
+    Simulates packing the current batch in the current region with all available heuristics,
+    scores them using the Math Engine, and returns the optimal Hstix enum.
+    """
+    engine = ScoringEngine(current_truck)
+    best_score = -1.0
+    best_algo = Hstix.FFG # Default
 
-def begin_pack(
-    truck: Truck_t,
-    boxes: List[Box_t],
-) -> Tuple[List[PlacedBox], List[Box], float, List[str]]:
-    original_load = boxes.copy()
+    heuristics = {
+        Hstix.FFR: ff_row_pack,
+        Hstix.FFG: ff_guillotine_pack,
+        Hstix.MAX: maxrects_pack,
+        Hstix.SKY: skyline_pack
+    }
 
-    placed_internal, notes = layer_pack(
-        truck=truck,
-        boxes=boxes,
-        initial_h=Hstix.FFR # Change to test different heuristics
-    )
+    for algo_enum, algo_func in heuristics.items():
+        test_truck = copy.deepcopy(current_truck)
+        test_batch = copy.deepcopy(current_batch)
 
-    placed = [PlacedBox.model_validate(p_box) for p_box in placed_internal]
-    unplaced = [Box.model_validate(box) for box in boxes]
-    utilization = get_utilization(truck, placed_internal, original_load)
+        try:
+            # 1. Run the simulation
+            layer_data = algo_func(truck=test_truck, boxes=test_batch, layer_y=region.y)
+            placed_in_batch = layer_data[0]
+            
+            if not placed_in_batch:
+                continue
 
-    return placed, unplaced, utilization, notes
+            # 2. Translate coordinates to absolute truck space for accurate scoring
+            _translate_placements(placed_in_batch, region.x, region.z)
 
+            # 3. Score the layout
+            score_data = engine.get_all_scores(placed_in_batch, test_batch)
+            if score_data["total_score"] > best_score:
+                best_score = score_data["total_score"]
+                best_algo = algo_enum
+        except Exception as e:
+            continue
 
+    return best_algo
+
+def begin_pack(truck: Truck_t, boxes: List[Box_t]) -> Dict[str, Any]:
+    print(f"\n🔍 Evaluating {len(boxes)} boxes with Regional Dynamic Selection...")
+    start_time = time.time()
+    original_load = copy.deepcopy(boxes)
+
+    # Execute the core packing loop
+    placed_internal, notes = layer_pack(truck=truck, boxes=boxes)
+
+    # Grade the final, completed truck load
+    engine = ScoringEngine(truck)
+    score_data = engine.get_all_scores(placed_internal, original_load)
+
+    # Format output for the API/Unity
+    notes.insert(0, "⭐ REGIONAL DYNAMIC SELECTION ACTIVE")
+    notes.append("===================================")
+    notes.append(f"📊 FINAL SCORE: {score_data['total_score'] * 100:.2f} / 100")
+    notes.append("===================================")
+
+    placed = [PlacedBox(id=pb.id, x=pb.x, y=pb.y, z=pb.z, rotation=getattr(pb, 'rotation', 0)) for pb in placed_internal]
+    unplaced = [Box(id=b.id, width=b.width, height=b.height, depth=b.depth, weight=b.weight, priority=b.priority) for b in boxes]
+
+    best_payload = {
+        "placed": placed,
+        "unplaced": unplaced,
+        "utilization": score_data["total_score"],
+        "notes": notes,
+        "metrics": score_data,
+        "runtime_ms": (time.time() - start_time) * 1000
+    }
+    
+    print(f"✅ Dynamic Evaluation complete in {best_payload['runtime_ms']:.2f}ms")
+    return best_payload
 
 def layer_pack(
     truck: Truck_t,
-    boxes: List[Box_t],
-    initial_h: Optional[Hstix] = None
+    boxes: List[Box_t]
 ) -> Tuple[List[PlacedBox_t], List[str]]:
-
-    heuristic: Hstix = initial_h
 
     placed: List[PlacedBox_t] = []
     notes: List[str] = []
@@ -102,8 +154,6 @@ def layer_pack(
             continue
 
         initial_box_count = len(boxes)
-
-        # The next batch type is defined by the first remaining box.
         anchor = boxes[0]
 
         local_truck = Truck_t(
@@ -114,45 +164,36 @@ def layer_pack(
             max_weight=truck.max_weight,
         )
 
+        # --- THE HOOK: Dynamically select the best algorithm for this specific region ---
+        heuristic = get_best_heuristic_for_region(local_truck, boxes, region)
+
         match heuristic:
             case Hstix.FFR:
-                layer_data = ff_row_pack(
-                    truck=local_truck,
-                    boxes=boxes,
-                    layer_y=region.y,
-                )
+                layer_data = ff_row_pack(truck=local_truck, boxes=boxes, layer_y=region.y)
+                notes.append(f"▶ Region {layer_index}: Selected [First-Fit Row]")
             case Hstix.FFG:
-                layer_data = ff_guillotine_pack(
-                    truck=local_truck,
-                    boxes=boxes,
-                    layer_y=region.y,
-                )
+                layer_data = ff_guillotine_pack(truck=local_truck, boxes=boxes, layer_y=region.y)
+                notes.append(f"▶ Region {layer_index}: Selected [First-Fit Guillotine]")
             case Hstix.MAX:
-                layer_data = maxrects_pack(
-                    truck=local_truck,
-                    boxes=boxes,
-                    layer_y=region.y,
-                )
+                layer_data = maxrects_pack(truck=local_truck, boxes=boxes, layer_y=region.y)
+                notes.append(f"▶ Region {layer_index}: Selected [MaxRects]")
             case Hstix.SKY:
-                layer_data = skyline_pack(
-                    truck=local_truck,
-                    boxes=boxes,
-                    layer_y=region.y,
-                )
+                layer_data = skyline_pack(truck=local_truck, boxes=boxes, layer_y=region.y)
+                notes.append(f"▶ Region {layer_index}: Selected [Skyline]")
             case _:
                 raise ValueError("Invalid heuristic choice.")
 
         local_placed, layer_notes, used_h, x_cursor, z_cursor = layer_data
 
         notes.append(
-            f"Region {layer_index}: origin=({region.x:.3f}, {region.y:.3f}, {region.z:.3f}) "
+            f"  ↳ origin=({region.x:.3f}, {region.y:.3f}, {region.z:.3f}) "
             f"size=({region.width:.3f}, {region.depth:.3f}, {region.height:.3f})"
         )
         notes.extend(layer_notes)
 
         # If nothing was placed here, skip this region and continue with the next one.
         if not local_placed:
-            notes.append("No boxes placed in this region.")
+            notes.append("  ↳ No boxes placed in this region.")
             layer_index += 1
             continue
 
@@ -209,13 +250,11 @@ def layer_pack(
             )
 
         if len(boxes) == initial_box_count:
-            notes.append("Box list unchanged after placing in region; continuing anyway.")
+            notes.append("  ↳ Box list unchanged after placing in region; continuing anyway.")
 
         layer_index += 1
-        # heuristic =  # replace later with optimization choice if needed
 
     return placed, notes
-
 
 def get_utilization(
     truck: Truck_t,
