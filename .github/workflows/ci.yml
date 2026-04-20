@@ -60,19 +60,16 @@ jobs:
           PYTHONPATH: .
         run: |
           pytest tests \
-            --maxfail=1 \
-            --disable-warnings \
             --cov=python \
             --cov-report=term-missing \
-            --cov-report=xml \
+            --cov-report=xml:docs/evaluation/coverage-report/coverage.xml \
+            --cov-report=html:docs/evaluation/coverage-report/coverage \
             --cov-fail-under=70 \
-            --junitxml=pytest-report.xml
+            --junitxml=docs/evaluation/coverage-report/test-results.xml
 
       - name: Upload test reports and coverage
         uses: actions/upload-artifact@v4
         with:
-          name: ci-artifacts-py${{ matrix.python-version }}
-          path: |
-            coverage.xml
-            pytest-report.xml
+          name: coverage-html
+          path: docs/evaluation/coverage-report/
           retention-days: 7
