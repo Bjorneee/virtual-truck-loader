@@ -25,14 +25,11 @@ Virtual truck loading application. Made for SJSU CMPE195 F25-S26 Senior Project.
 
 
 ## Installation
-- Download Unity and the correct editor version
-- Click on the green code button
-- Copy URL to clone repo (or choose your preferred cloning method)
-- Open VS Code in your preferred directory and open the terminal
-- Paste [git clone https://github.com/Bjorneee/virtual-truck-loader.git]
-- Open Unity project
-- Open Visual Studio code and navigate to the preferred branch
-- Project should be loaded onto Unity for use
+- Select 'VTL Prototype Build' under Releases in the rop right corner
+- select 'VTL.zip' to download the compressed application file
+- Locate the zip file in your file explorer and extract it to your desired location
+- open the 'backend' folder and run 'backend.exe' (This starts up the backend server, will patch soon to only require VTL.exe to start up to start server)
+- run 'VTL.exe' to start the application
 
 ## Configuration
 - Unity Configuration
