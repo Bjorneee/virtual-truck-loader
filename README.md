@@ -61,7 +61,6 @@ virtual-truck-loader/
 ├── tests/        # Automated CI/CD pipeline scripts + test load jsons 
 ├── README.md  
 
-#Key Folders Explained
 unity/
   - Main frontend application
   - Handles:
