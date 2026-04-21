@@ -1,20 +1,22 @@
 # API Reference
 
+## Base URL
+http://127.0.0.1:8000/
+
 ## How to Run
-cd VTL
+```powershell
+cd {folder_path}/vitrual-truck-loader
 
 uvicorn python.api.main:app --reload
-
+```
 ## Testing
 
 ### Powershell
 
 #### In a separate terminal:
+```powershell
 curl.exe -X POST -H "Content-Type: application/json" -d "@python/tests/test_load.json" http://127.0.0.1:8000/pack
-
-## Base URL
-http://127.0.0.1:8000/
-
+```
 ## Endpoints
 
 ---

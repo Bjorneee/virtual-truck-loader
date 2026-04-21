@@ -1,0 +1,19 @@
+{
+  "truck": {
+    "id": "Perfect_Tiling",
+    "width": 2.4,
+    "height": 2.0,
+    "depth": 4.8,
+    "max_weight": 5000
+  },
+  "boxes": [
+    {"id": "T01", "width": 1.2, "height": 1.0, "depth": 1.2, "weight": 40, "priority": 1},
+    {"id": "T02", "width": 1.2, "height": 1.0, "depth": 1.2, "weight": 40, "priority": 1},
+    {"id": "T03", "width": 1.2, "height": 1.0, "depth": 1.2, "weight": 40, "priority": 1},
+    {"id": "T04", "width": 1.2, "height": 1.0, "depth": 1.2, "weight": 40, "priority": 1},
+    {"id": "T05", "width": 1.2, "height": 1.0, "depth": 1.2, "weight": 40, "priority": 1},
+    {"id": "T06", "width": 1.2, "height": 1.0, "depth": 1.2, "weight": 40, "priority": 1},
+    {"id": "T07", "width": 1.2, "height": 1.0, "depth": 1.2, "weight": 40, "priority": 1},
+    {"id": "T08", "width": 1.2, "height": 1.0, "depth": 1.2, "weight": 40, "priority": 1}
+  ]
+}

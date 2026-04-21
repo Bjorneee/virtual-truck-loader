@@ -30,6 +30,8 @@ public class CargoItem
         Weight = weight;
         IsStackable = stackable;
         GroupName = groupName;
+        Position = Vector3.zero;
+        Rotation = Quaternion.identity;
 
         DisplayColor = GetColorForGroup(groupName);
     }

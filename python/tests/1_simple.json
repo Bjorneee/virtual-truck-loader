@@ -1,0 +1,34 @@
+{
+  "truck": {
+    "id": "Simple",
+    "width": 2.4,
+    "height": 2.6,
+    "depth": 12.0
+  },
+  "boxes": [
+    {
+      "id": "bx1",
+      "width": 1.2,
+      "height": 0.8,
+      "depth": 0.6,
+      "weight": 12.0,
+      "priority": 0.0
+    },
+    {
+      "id": "bx2",
+      "width": 1.0,
+      "height": 1.5,
+      "depth": 1.5,
+      "weight": 24.0,
+      "priority": 0.0
+    },
+    {
+      "id": "bx3",
+      "width": 0.5,
+      "height": 1.0,
+      "depth": 0.4,
+      "weight": 10.0,
+      "priority": 0.0
+    }
+  ]
+}

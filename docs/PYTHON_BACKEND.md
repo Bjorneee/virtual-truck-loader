@@ -5,37 +5,74 @@ The Python backend provides:
 - A REST API for Unity
 - Data validation
 - Packing/optimization logic
-- Lightweight data processing
+- Developer-Only Testing Simulation
 
 ## Folder Structure
 python/  
-├─ api/  
-│ ├─ main.py  
-│ ├─ routes.py  
-│ ├─ logging.py  
-│ ├─ config.py  
-│ ├─ schemas.py  
-│ └─ deps.py    
-├─ services/  
-│ └─ packing_services.py  
-├─ vtl_core/  
-│ ├─ __init__.py  
-│ ├─ domain/  
-│ │ ├─ errors.py  
-│ │ └─ models.py  
-│ ├─ optimization/  
-│ ├─ packing/  
-│ │ ├─ constraints.py  
-│ │ ├─ heuristics.py  
-│ │ ├─ postprocess.py  
-│ │ └─ scoring.py  
-│ └─ utils.py  
-├─ tests/  
-│ ├─ test_load.json  
-│ ├─ test_optimization.py  
-│ └─ test_packing.py  
-├─ __init__.py  
-└─ requirements.txt  
+│   dev-requirements.txt
+│   README.md
+│   requirements.txt
+│
+├───api
+│   │   config.py
+│   │   logging.py
+│   │   main.py
+│   │   routes.py
+│   └── schemas.py
+│
+├───dev_renderer
+│   │   main.py
+│   │   vconfig.py
+│   │
+│   ├───app
+│   │   │   api_client.py
+│   │   │   loader.py
+│   │   └── viewer.py
+│   │
+│   ├───camera
+│   │   └──camera.py
+│   │
+│   ├───scene
+│   │   │   grid.py
+│   │   │   ground.py
+│   │   │   lighting.py
+│   │   └── primitives.py
+│   │
+│   └───utils
+│       │   helpers.py
+│       └── json_loader.py
+│
+├───services
+│   └── packing_services.py
+│
+├───tests
+│   │   0_axis.json
+│   │   10_many_small.json
+│   │   11_fragmentation.json
+│   │   12_flat.json
+│   │   13_single_type.json
+│   │   1_simple.json
+│   │   2_many.json
+│   │   3_warehouse.json
+│   │   4_small_med.json
+│   │   5_furniture.json
+│   │   6_dense.json
+│   │   7_perfect_tile.json
+│   │   8_oversized.json
+│   └── 9_tall_skinny.json
+│
+└───vtl_core
+    │   utils.py
+    │
+    ├───domain
+    │   └──   models.py
+    │
+    └───packing
+        │   heurisitics.py
+        │   processing.py
+        └── scoring.py
+
+
 
 ## API Entrypoint
 `api/main.py`
@@ -52,7 +89,7 @@ python/
 - `PackingResponse`
 
 ## Packing Logic
-(`vtl_core/packing/heuristics.py`)
+(`vtl_core/packing/processing.py`)
 - Receives validated models
 - Computes placements
 - Returns response model
@@ -101,18 +138,11 @@ Balance Warning      0.20                   (0.20⋅count)
 ## How To Run
 cd python
 
-python -m venv .venv
-
-source .venv/bin/activate
-
 pip install -r requirements.txt
 
 python api/main.py
 
-## How To Test
-pytest
-
 ## How To Extend
-- Add new heuristic → `vtl_core/packing/`
-- Register new heuristic in API layer
-- Update API reference if contract changes
+- Add new heuristic → `vtl_core/packing/heuristics.py`
+- Include new heuristic among optimization engine selections
+- Reconfigure optimization engine calculations to include new heuristic

@@ -1,5 +1,3 @@
-# Item, Container, Placement, Solution (Internal Dataclasses)
-
 from dataclasses import dataclass
 from typing import Literal, Optional
 
@@ -19,6 +17,15 @@ class Box_t:
     priority: Optional[float] = None
 
     # Methods
+
+    def __eq__(self, other):
+        if not isinstance(other, Box_t):
+            return NotImplemented
+        return (
+            self.width == other.width and
+            self.height == other.height and
+            self.depth == other.depth
+        )
 
     # Returns the volume occupied by Item
     @property
@@ -80,3 +87,47 @@ class Truck_t:
     @property
     def floor_area(self) -> float:
         return self.width * self.depth
+
+
+### Heuristic Helper Classes
+
+"""
+Top-left-origin free rectangle on the truck floor.
+
+Coordinates:
+    - x increases left -> right
+    - z increases top -> bottom
+    - (x, z) is the top-left corner of the free rectangle
+"""
+@dataclass
+class FreeRectTL:
+
+    x: float
+    z: float
+    w: float
+    d: float
+
+    @property
+    def right(self) -> float:
+        return self.x + self.w
+
+    @property
+    def bottom(self) -> float:
+        return self.z + self.d
+    
+
+@dataclass
+class SkylineSeg:
+    x: float
+    z: float
+    w: float
+
+
+@dataclass
+class PackRegion:
+    x: float
+    y: float
+    z: float
+    width: float
+    depth: float
+    height: float

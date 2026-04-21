@@ -1,1 +1,0 @@
-# Variable definitions, constraints, objective

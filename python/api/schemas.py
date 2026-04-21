@@ -9,6 +9,7 @@ class Box(BaseModel):
     height: float
     depth: float
     weight: float
+    rotatable: bool = True
     priority: Optional[float] = 0.0
 
 class Truck(BaseModel):
@@ -31,7 +32,7 @@ class PlacedBox(BaseModel):
     x: float
     y: float
     z: float
-    rotation: int  # e.g. 0–5 for orthogonal rotations
+    rotation: int # Y-axis only: 0 - not rotated, 1 - rotated
 
 class PackingResponse(BaseModel):
     placed: Optional[List[PlacedBox]]

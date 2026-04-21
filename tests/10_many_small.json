@@ -1,0 +1,41 @@
+{
+  "truck": {
+    "id": "Many_Small",
+    "width": 2.0,
+    "height": 2.0,
+    "depth": 6.0,
+    "max_weight": 3000
+  },
+  "boxes": [
+    {"id": "Q001", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q002", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q003", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q004", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q005", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q006", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q007", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q008", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q009", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q010", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q011", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q012", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q013", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q014", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q015", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q016", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q017", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q018", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q019", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q020", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q021", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q022", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q023", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q024", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q025", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q026", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q027", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q028", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q029", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1},
+    {"id": "Q030", "width": 0.25, "height": 0.25, "depth": 0.25, "weight": 2, "priority": 1}
+  ]
+}

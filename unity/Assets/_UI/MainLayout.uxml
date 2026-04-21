@@ -1,37 +1,37 @@
 <ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
-    <Style src="project://database/Assets/_UI/MainStyles.uss?fileID=7433441132597879392&amp;guid=f1217d311cc53a94580edc6141f5d6b5&amp;type=3#MainStyles" />
+    <Style src="project://database/Assets/_UI/MainStyles.uss?fileID=7433441132597879392&amp;guid=f1217d311cc53a94580edc6141f5d6b5&amp;type=3#MainStyles"/>
     <ui:VisualElement name="RootContainer" picking-mode="Ignore" style="flex-grow: 1; height: 100%;">
         <ui:VisualElement name="TopBar" style="flex-grow: 0; height: 80px; background-color: rgb(30, 31, 34); flex-direction: row; align-items: center; padding-left: 10px; flex-shrink: 0; margin-bottom: 0;">
-            <ui:Button text="💾 Save" name="BtnSave" class="toolbar-button" />
-            <ui:Button text="📂 File" name="BtnFile" class="toolbar-button" />
-            <ui:Button text="➕ Add" name="BtnAddMenu" class="toolbar-button" />
-            <ui:Button text="📥 Load" name="BtnLoad" class="toolbar-button" />
-            <ui:Button text="📦 Pack" name="BtnSort" selectable="true" double-click-selects-word="false" triple-click-selects-line="false" class="toolbar-button" />
-            <ui:Button text="👁️ View" name="BtnView" class="toolbar-button" />
-            <ui:Button text="⚙️ Settings" name="BtnSettings" class="toolbar-button" />
+            <ui:Button text="💾 Save" name="BtnSave" class="toolbar-button"/>
+            <ui:Button text="📂 File" name="BtnFile" class="toolbar-button"/>
+            <ui:Button text="➕ Add" name="BtnAddMenu" class="toolbar-button"/>
+            <ui:Button text="📥 Load" name="BtnLoad" class="toolbar-button"/>
+            <ui:Button text="📦 Pack" name="BtnSort" selectable="true" double-click-selects-word="false" triple-click-selects-line="false" class="toolbar-button"/>
+            <ui:Button text="👁️ View" name="BtnView" class="toolbar-button"/>
+            <ui:Button text="⚙️ Settings" name="BtnSettings" class="toolbar-button"/>
         </ui:VisualElement>
-        <ui:VisualElement name="MainContent" picking-mode="Ignore" style="flex-grow: 1; flex-direction: row; margin-top: 0; padding-top: 0; align-items: stretch;">
-            <ui:VisualElement name="LeftPanel" style="flex-grow: 2; width: auto; background-color: rgb(43, 45, 49); margin-top: 0; height: auto; border-top-left-radius: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; border-bottom-left-radius: 0; padding-top: 15px; padding-right: 15px; padding-bottom: 15px; padding-left: 15px; border-top-width: 0; border-right-width: 0; border-bottom-width: 0; border-left-width: 0;">
-                <ui:Label text="Truck Dimensions&#10;" name="TruckDimensions" class="text-light" style="-unity-font-style: bold; margin-top: 10px; margin-left: 5px;" />
+        <ui:VisualElement name="MainContent" picking-mode="Ignore" style="flex-grow: 1; flex-direction: row; margin-top: 0; padding-top: 0; align-items: stretch; justify-content: space-between;">
+            <ui:VisualElement name="LeftPanel" style="flex-grow: 2; width: 25%; background-color: rgb(43, 45, 49); margin-top: 0; height: auto; border-top-left-radius: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; border-bottom-left-radius: 0; padding-top: 15px; padding-right: 15px; padding-bottom: 15px; padding-left: 15px; border-top-width: 0; border-right-width: 0; border-bottom-width: 0; border-left-width: 0; align-self: auto; flex-direction: column; flex-wrap: wrap; max-width: 20%;">
+                <ui:Label text="Truck Dimensions&#10;" name="TruckDimensions" class="text-light" style="-unity-font-style: bold; margin-top: 10px; margin-left: 5px;"/>
                 <ui:VisualElement name="TruckSettings" style="flex-grow: 0; flex-direction: row; align-items: center; height: auto; border-left-color: rgb(229, 229, 229); border-right-color: rgb(229, 229, 229); border-top-color: rgb(229, 229, 229); border-bottom-color: rgb(229, 229, 229); border-bottom-width: 0; border-top-width: 0; flex-shrink: 0;">
                     <ui:FloatField label="L" value="10" name="TruckL" class="text-light truck-input input-field" style="width: auto; flex-grow: 1; margin-right: 5px;" />
                     <ui:FloatField label="W" value="10" name="TruckW" class="text-light truck-input input-field" style="width: auto; flex-grow: 1; margin-right: 5px;" />
                     <ui:FloatField label="H" value="10" name="TruckH" class="text-light truck-input input-field" style="width: auto; flex-grow: 1;" />
                 </ui:VisualElement>
-                <ui:Label text="Inventory List&#10;" name="Stats" class="text-light" style="-unity-font-style: bold; padding-top: 4px; margin-top: 10px; margin-left: 0; border-top-width: 1px; border-left-color: rgb(255, 250, 250); border-right-color: rgb(255, 250, 250); border-top-color: rgb(255, 250, 250); border-bottom-color: rgb(255, 250, 250); margin-right: 0;" />
+                <ui:Label text="Inventory List&#10;" name="Stats" class="text-light" style="-unity-font-style: bold; padding-top: 4px; margin-top: 10px; margin-left: 0; border-top-width: 1px; border-left-color: rgb(255, 250, 250); border-right-color: rgb(255, 250, 250); border-top-color: rgb(255, 250, 250); border-bottom-color: rgb(255, 250, 250); margin-right: 0;"/>
                 <ui:VisualElement name="ListWrapper" style="flex-grow: 1;">
                     <ui:VisualElement name="ListHeader" style="flex-grow: 1; flex-direction: row; justify-content: space-between;">
-                        <ui:ListView name="ItemListView" style="flex-grow: 1; margin-top: 5px; border-top-width: 0; border-left-color: rgb(229, 229, 229); border-right-color: rgb(229, 229, 229); border-top-color: rgb(229, 229, 229); border-bottom-color: rgb(229, 229, 229); padding-top: 5px; border-bottom-width: 0;" />
-                        <ui:Button text="Clear All" name="BtnClearList" class="text-light" style="background-color: rgb(157, 0, 5); width: 80px; height: 25px; border-top-left-radius: 4px; border-top-right-radius: 4px; border-bottom-right-radius: 4px; border-bottom-left-radius: 4px; border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px; border-left-width: 1px;" />
+                        <ui:ListView name="ItemListView" style="flex-grow: 1; margin-top: 5px; border-top-width: 0; border-left-color: rgb(229, 229, 229); border-right-color: rgb(229, 229, 229); border-top-color: rgb(229, 229, 229); border-bottom-color: rgb(229, 229, 229); padding-top: 5px; border-bottom-width: 0;"/>
+                        <ui:Button text="Clear All" name="BtnClearList" class="text-light" style="background-color: rgb(157, 0, 5); width: 80px; height: 25px; border-top-left-radius: 4px; border-top-right-radius: 4px; border-bottom-right-radius: 4px; border-bottom-left-radius: 4px; border-top-width: 1px; border-right-width: 1px; border-bottom-width: 1px; border-left-width: 1px;"/>
                     </ui:VisualElement>
-                    <ui:Button text="+" name="BtnAdd" style="height: 60px; background-color: rgb(43, 45, 49); color: rgb(255, 255, 255); position: absolute; bottom: 10px; right: 10px; width: 60px; border-top-left-radius: 30px; border-top-right-radius: 30px; border-bottom-right-radius: 30px; border-bottom-left-radius: 30px; font-size: 30px;" />
+                    <ui:Button text="+" name="BtnAdd" style="height: 60px; background-color: rgb(43, 45, 49); color: rgb(255, 255, 255); position: absolute; bottom: 10px; right: 10px; width: 60px; border-top-left-radius: 30px; border-top-right-radius: 30px; border-bottom-right-radius: 30px; border-bottom-left-radius: 30px; font-size: 30px;"/>
                 </ui:VisualElement>
                 <ui:VisualElement name="StatsFooter" style="flex-grow: 1; border-top-width: 1px; border-left-color: rgb(255, 250, 250); border-right-color: rgb(255, 250, 250); border-top-color: rgb(255, 250, 250); border-bottom-color: rgb(255, 250, 250); margin-top: 5px; padding-top: 5px; flex-shrink: 0;">
                     <ui:Label text="Total Weight: 0 kg&#10;" name="LblWeight" class="text-light" />
                     <ui:Label text="Volume Used: 0.0%" name="LblVolume" class="text-light" />
                     <ui:ProgressBar value="0" name="BarVolume" />
                 </ui:VisualElement>
-                <ui:Button text="🚀 GENERATE LOADOUT" name="BtnGenerate" class="text-light" style="height: 40px; background-color: rgb(35, 165, 89); -unity-font-style: bold; border-top-left-radius: 8px; border-top-right-radius: 8px; border-bottom-right-radius: 8px; border-bottom-left-radius: 8px; font-size: 16px;" />
+                <ui:Button text="🚀 GENERATE LOADOUT" name="BtnGenerate" class="text-light" style="height: 40px; background-color: rgb(35, 165, 89); -unity-font-style: bold; border-top-left-radius: 8px; border-top-right-radius: 8px; border-bottom-right-radius: 8px; border-bottom-left-radius: 8px; font-size: 16px;"/>
             </ui:VisualElement>
             <ui:VisualElement name="CenterView" picking-mode="Ignore" style="flex-grow: 2; background-color: rgba(0, 0, 0, 0); width: 200px;">
                 <ui:Button text="⬅ Back to List" name="BtnBack" selectable="false" focusable="false" class="text-light" style="background-color: rgb(43, 45, 49); position: absolute;" />
@@ -52,14 +52,14 @@
         </ui:VisualElement>
         <ui:VisualElement name="SettingsOverlay" style="flex-grow: 1; position: absolute; left: 0; top: 0; bottom: 0; right: 0; background-color: rgba(0, 0, 0, 0.59); align-items: center; justify-content: center; display: none;">
             <ui:VisualElement name="SettingsModal" style="flex-grow: 1; width: 400px; background-color: rgb(51, 51, 51); border-top-left-radius: 10px; border-top-right-radius: 10px; border-bottom-right-radius: 10px; border-bottom-left-radius: 10px; padding-top: 20px; padding-right: 20px; padding-bottom: 20px; padding-left: 20px;">
-                <ui:Label text="Algorithm Settings" name="AlgSet" style="color: rgb(255, 250, 250); font-size: 20px; -unity-font-style: bold;" />
-                <ui:DropdownField label="Algorithm" name="InputAlgorithm" index="0" choices="Standard Heuristic,Machine Learning" class="text-light" />
-                <ui:SliderInt label="Max Time (sec)" value="42" high-value="60" name="InputTimeLimit" low-value="5" class="text-light" />
-                <ui:Button text="Save &amp; Close" name="BtnCloseSettings" style="background-color: rgb(36, 112, 255);" />
+                <ui:Label text="Algorithm Settings" name="AlgSet" style="color: rgb(255, 250, 250); font-size: 20px; -unity-font-style: bold;"/>
+                <ui:DropdownField label="Algorithm" name="InputAlgorithm" index="0" choices="Standard Heuristic,Machine Learning" class="text-light"/>
+                <ui:SliderInt label="Max Time (sec)" value="42" high-value="60" name="InputTimeLimit" low-value="5" class="text-light"/>
+                <ui:Button text="Save &amp; Close" name="BtnCloseSettings" style="background-color: rgb(36, 112, 255);"/>
             </ui:VisualElement>
         </ui:VisualElement>
         <ui:VisualElement name="LoadingOverlay" style="flex-grow: 1; position: absolute; top: 0; left: 0; bottom: 0; right: 0; background-color: rgba(0, 0, 0, 0.78); justify-content: center; align-items: center; display: none;">
-            <ui:Label text="Calculating Optimal Layout... Please Wait" name="Loading" class="text-light" style="font-size: 24px; -unity-font-style: bold; display: flex;" />
+            <ui:Label text="Calculating Optimal Layout... Please Wait" name="Loading" class="text-light" style="font-size: 24px; -unity-font-style: bold; display: flex;"/>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

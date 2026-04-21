@@ -1,11 +1,16 @@
 using System.Collections.Generic;
+using System.Diagnostics;
+using System.IO; // Required for writing files
 using UnityEngine;
 using UnityEngine.UIElements;
 using System.IO;
 using UnityEngine.Networking;
+using Debug = UnityEngine.Debug;
 
 public class UIManager : MonoBehaviour
 {
+    [SerializeField] private PackingBackendClient backendClient;
+
     public static UIManager Instance;
 
     private void Awake()
@@ -282,7 +287,7 @@ public class UIManager : MonoBehaviour
         var newItem = new CargoItem(finalName, l, w, h, weight, isStackable, group);
 
         _inventory.Add(newItem);
-        SpawnVisualBox(newItem);
+        //SpawnVisualBox(newItem);
 
         _itemListView.ClearSelection();
         SetRightPanelToCreateMode();
@@ -303,7 +308,14 @@ public class UIManager : MonoBehaviour
 
         GameObject newBox = Instantiate(boxPrefab, spawnPos, Quaternion.identity);
         newBox.transform.localScale = new Vector3(item.Length, item.Height, item.Width);
+        newBox.transform.position = item.Position;
         newBox.GetComponent<Renderer>().material.color = item.DisplayColor;
+
+        Rigidbody rb = newBox.GetComponent<Rigidbody>();
+        if (rb != null)
+        {
+            Destroy(rb);
+        }
 
         _visualBoxes.Add(newBox);
         if (!string.IsNullOrEmpty(item.Id)) _itemObjects[item.Id] = newBox;
@@ -337,124 +349,136 @@ public class UIManager : MonoBehaviour
         Debug.Log($"<color=cyan>SAVED JSON to:</color> {path}");
     }
 
-    private void WritePackRequestJSON()
+//Currently Obsolete/ used for debugging with file read/write instead of backend calls. Can be re-purposed for "Export JSON" button if desired.
+   
+    // private void WritePackRequestJSON()
+    // {
+    //     PackRequestData request = new PackRequestData();
+    //     request.TruckLength = _truckL.value;
+    //     request.TruckWidth = _truckW.value;
+    //     request.TruckHeight = _truckH.value;
+    //     request.items = new List<PackRequestItem>();
+
+    //     foreach (CargoItem item in _inventory)
+    //     {
+    //         PackRequestItem requestedItem = new PackRequestItem
+    //         {
+    //             Id = item.Id,
+    //             Length = item.Length,
+    //             Width = item.Width,
+    //             Height = item.Height,
+    //             Weight = item.Weight,
+    //         };
+
+    //         request.items.Add(requestedItem);
+
+    //         Debug.Log($"ITEM PACK REQUEST: -> {item.Name} | ID={item.Id} | L={item.Length}, W={item.Width}, H={item.Height}, Weight={item.Weight}");
+    //     }
+
+    //     //write JSON
+    //     string requestJson = JsonUtility.ToJson(request, true);
+    //     string requestPath = Path.Combine(Application.persistentDataPath, "pack_request.json");
+    //     File.WriteAllText(requestPath, requestJson);
+
+    //     Debug.Log($"<color=cyan>PACK REQUEST SAVED to:</color> {requestPath}");
+    // }
+
+    // private void WritePackResponseJSON()
+    // {
+    //     //Read backend response JSON
+    //     string responsePath = Path.Combine(Application.persistentDataPath, "pack_response.json");
+
+    //     if (!File.Exists(responsePath))
+    //     {
+    //         Debug.LogWarning($"No pack response file found at: {responsePath}");
+    //         return;
+    //     }
+
+    //     string responseJson = File.ReadAllText(responsePath);
+    //     PackResponseData response = JsonUtility.FromJson<PackResponseData>(responseJson);
+
+    //     if (response == null || response.items == null)
+    //     {
+    //         Debug.LogError("Invalid pack response JSON.");
+    //         return;
+    //     }
+
+    //     //Apply returned positions
+    //     foreach (PackResponseItem responseItem in response.items)
+    //     {
+    //         if (_itemObjects.TryGetValue(responseItem.Id, out GameObject box))
+    //         {
+    //             box.transform.position = responseItem.Position;
+
+    //             CargoItem item = _inventory.Find(x => x.Id == responseItem.Id);
+    //             if (item != null)
+    //             {
+    //                 item.Position = responseItem.Position;
+    //                 item.Rotation = responseItem.Rotation;
+    //             }
+
+    //             Debug.Log($"SORT RESPONSE -> ID={responseItem.Id} moved to {responseItem.Position}");
+    //         }
+    //         else
+    //         {
+    //             Debug.LogWarning($"No spawned box found for backend item ID: {responseItem.Id}");
+    //         }
+    //     }
+
+    //     Debug.Log("<color=green>PACK RESPONSE APPLIED</color>");
+    // }
+
+    private PackingRequest BuildPackingRequest()
+{
+    var request = new PackingRequest
     {
-        PackRequestData request = new PackRequestData();
-        request.TruckLength = _truckL.value;
-        request.TruckWidth = _truckW.value;
-        request.TruckHeight = _truckH.value;
-        request.items = new List<PackRequestItem>();
-
-        foreach (CargoItem item in _inventory)
+        truck = new TruckData
         {
-            PackRequestItem requestedItem = new PackRequestItem
-            {
-                Id = item.Id,
-                Length = item.Length,
-                Width = item.Width,
-                Height = item.Height,
-                Weight = item.Weight,
-            };
+            id = "T1",
+            width = _truckW.value,
+            height = _truckH.value,
+            depth = _truckL.value
+        },
+        boxes = new List<BoxData>()
+    };
 
-            request.items.Add(requestedItem);
-            Debug.Log($"ITEM PACK REQUEST: -> {item.Name} | ID={item.Id} | L={item.Length}, W={item.Width}, H={item.Height}, Weight={item.Weight}");
-        }
+    foreach (CargoItem item in _inventory)
+    {
+        request.boxes.Add(new BoxData
+        {
+            id = item.Id,
+            width = item.Width,
+            height = item.Height,
+            depth = item.Length,
+            weight = item.Weight,
+            rotatable = true,
+            priority = 0f
+        });
 
-        string requestJson = JsonUtility.ToJson(request, true);
-        string requestPath = Path.Combine(Application.persistentDataPath, "pack_request.json");
-        File.WriteAllText(requestPath, requestJson);
-
-        Debug.Log($"<color=cyan>PACK REQUEST SAVED to:</color> {requestPath}");
+        Debug.Log($"Pack item -> {item.Name} | id={item.Id} | W={item.Width} H={item.Height} D={item.Length} WT={item.Weight}");
     }
 
-    private void WritePackResponseJSON()
-    {
-        string responsePath = Path.Combine(Application.persistentDataPath, "pack_response.json");
-
-        if (!File.Exists(responsePath))
-        {
-            Debug.LogWarning($"No pack response file found at: {responsePath}");
-            return;
-        }
-
-        string responseJson = File.ReadAllText(responsePath);
-        Debug.Log($"Raw API Response: {responseJson}");
-
-        // Use your teammate's data class
-        PackResponseData response = JsonUtility.FromJson<PackResponseData>(responseJson);
-
-        if (response == null || response.placed == null)
-        {
-            Debug.LogError("Invalid pack response JSON structure.");
-            return;
-        }
-
-        // The API returns positions relative to truck corner (0,0,0).
-        // Python coordinate system: x=width, y=height, z=depth
-        // Unity coordinate system in this project: x=length(depth), y=height, z=width
-        // Truck is centered at origin in both systems.
-        float halfTruckLength = TruckL / 2f; // Unity X half-size
-        float halfTruckHeight = TruckH / 2f; // Unity Y half-size (both use Y for height)
-        float halfTruckWidth = TruckW / 2f;  // Unity Z half-size
-
-        foreach (PackResponseItem responseItem in response.placed)
-        {
-            // IMPORTANT: If IDs don't match, this will fail. 
-            // We use the 'id' field from the JSON to find the box in our dictionary.
-            if (_itemObjects.TryGetValue(responseItem.id, out GameObject box))
-            {
-                box.SetActive(true);
-
-                // Get box dimensions
-                float boxLength = box.transform.localScale.x; // corresponds to python depth
-                float boxHeight = box.transform.localScale.y;
-                float boxWidth = box.transform.localScale.z;  // corresponds to python width
-
-                // API gives positions as distances from corner (0,0,0)
-                // Convert from API corner-based to Unity center-based coordinates:
-                // API x (width axis) -> Unity Z
-                // API y (height axis) -> Unity Y
-                // API z (depth axis) -> Unity X
-                float unityX = (responseItem.z - halfTruckLength) + (boxLength / 2f);
-                float unityY = (responseItem.y - halfTruckHeight) + (boxHeight / 2f);
-                float unityZ = (responseItem.x - halfTruckWidth) + (boxWidth / 2f);
-
-                box.transform.position = new Vector3(unityX, unityY, unityZ);
-
-                // Clamp position to truck bounds just to be safe
-                unityX = Mathf.Clamp(unityX, -halfTruckLength + boxLength / 2f, halfTruckLength - boxLength / 2f);
-                unityY = Mathf.Clamp(unityY, boxHeight / 2f, TruckH - boxHeight / 2f);
-                unityZ = Mathf.Clamp(unityZ, -halfTruckWidth + boxWidth / 2f, halfTruckWidth - boxWidth / 2f);
-
-                box.transform.position = new Vector3(unityX, unityY, unityZ);
-
-                // Set rotation based on API response
-                // rotation value is in degrees around Y axis
-                Quaternion rotation = Quaternion.Euler(0, responseItem.rotation, 0);
-                box.transform.rotation = rotation;
-
-                Debug.Log($"SUCCESS: Placed {responseItem.id} at {box.transform.position} (api pos: {responseItem.x}, {responseItem.y}, {responseItem.z})");
-            }
-            else
-            {
-                Debug.LogWarning($"API returned an ID ({responseItem.id}) that we don't have in our Unity inventory!");
-            }
-        }
-
-        // Log unplaced items
-        if (response.unplaced != null && response.unplaced.Count > 0)
-        {
-            Debug.LogWarning($"API could not place {response.unplaced.Count} items");
-        }
-
-        Debug.Log("<color=green>PACK RESPONSE APPLIED SUCCESSFULLY</color>");
-    }
+    return request;
+}
 
     private void OnSortClicked()
     {
-        WritePackRequestJSON();
-        WritePackResponseJSON();
-        SetAppMode(false);
+        if (backendClient == null || !backendClient.IsBackendReady)
+        {
+        Debug.LogWarning("Backend is not ready yet.");
+        return;
+        }
+        
+        PackingRequest request = BuildPackingRequest();
+        StartCoroutine(backendClient.SendPackRequest(
+            BuildPackingRequest(),
+            OnPackSuccess,
+            OnPackError
+        ));
+
+        // WritePackRequestJSON();
+        // WritePackResponseJSON();
+
     }
 
     private void ClearAll()
@@ -469,6 +493,69 @@ public class UIManager : MonoBehaviour
         _itemListView.RefreshItems();
         UpdateMetrics();
     }
+
+
+    private void OnPackSuccess(PackingResponse response)
+    {
+        if (response == null)
+        {
+            Debug.LogError("Pack response was null.");
+            return;
+        }
+
+        if (response.placed != null)
+        {
+            SetAppMode(false);
+
+            foreach (var placed in response.placed)
+            {
+                CargoItem item = _inventory.Find(i => i.Id == placed.id);
+                if (item == null)
+                {
+                    Debug.LogWarning($"No CargoItem found for id {placed.id}");
+                    continue;
+                }
+
+                bool rotated = placed.rotation == 1;
+
+                float halfX = rotated ? item.Width / 2f : item.Length / 2f;
+                float halfZ = rotated ? item.Length / 2f : item.Width / 2f;
+
+                // backend: x = width axis, z = depth axis
+                // unity:   z = width axis, x = length/depth axis
+                Vector3 newPos = new Vector3(
+                    placed.z + halfX,
+                    placed.y + item.Height / 2f,
+                    placed.x + halfZ
+                );
+
+                item.Position = newPos;
+                item.Rotation = rotated ? Quaternion.Euler(0f, 90f, 0f) : Quaternion.identity;
+
+                if (_itemObjects.TryGetValue(placed.id, out GameObject existingBox) && existingBox != null)
+                {
+                    existingBox.transform.position = newPos;
+                }
+                else
+                {
+                    SpawnVisualBox(item);
+                }
+
+                Debug.Log($"Placed {placed.id} at {newPos}, rotation={placed.rotation}");
+                if (_itemObjects.TryGetValue(placed.id, out GameObject spawned) && spawned != null)
+                    spawned.transform.rotation = item.Rotation;
+            }
+        }
+
+
+        Debug.Log($"Packing complete. Utilization={response.utilization}, runtime_ms={response.runtime_ms}, notes={response.notes}");
+    }
+
+    private void OnPackError(string error)
+    {
+        Debug.LogError("Packing backend error: " + error);
+    }
+
 
     private void OnLoadClicked()
     {
@@ -492,7 +579,9 @@ public class UIManager : MonoBehaviour
         foreach (CargoItem item in loadedData.items)
         {
             _inventory.Add(item);
-            SpawnVisualBox(item);
+            //SpawnVisualBox(item);
+
+            Debug.Log($"{item.Name} loaded at position {item.Position}");
         }
 
         _itemListView.RefreshItems();
@@ -514,24 +603,21 @@ public class UIManager : MonoBehaviour
         _truckW.SetValueWithoutNotify(zSize);
         _truckH.SetValueWithoutNotify(ySize);
 
-        // 3. Position and Scale the Solid Floor
-        if (truckFloorObject != null)
-        {
-            truckFloorObject.transform.position = Vector3.zero; // Force to center
-            truckFloorObject.transform.localScale = new Vector3(xSize, 0.1f, zSize);
-        }
+        // 1. Scale the Solid Floor (Always thin)
+        truckFloorObject.transform.localScale = new Vector3(l, 0.1f, w);
+        // Keep the back-left corner at Y = 0
+        truckFloorObject.transform.position = new Vector3(l/2, 0, w/2);
 
         // 4. Position and Scale the Glass Volume
         if (truckVolumeObject != null)
         {
-            // Position: Center it on X and Z, raise it on Y so the bottom touches the floor
-            truckVolumeObject.transform.position = new Vector3(0, ySize / 2f, 0);
-            truckVolumeObject.transform.localScale = new Vector3(xSize, ySize, zSize);
+            truckVolumeObject.transform.localScale = new Vector3((l + 0.01f), (h + 0.01f), (w + 0.01f));
+
+            // Unity scales from the center. If height is 10, it goes 5 up and 5 down.
+            // We move it up by (Height / 2) so the bottom of the glass touches the floor.
+            truckVolumeObject.transform.position = new Vector3(l/2, h / 2f, w/2);
         }
-
-        UpdateMetrics();
     }
-
     private void RemoveItem(CargoItem itemToRemove)
     {
         _inventory.Remove(itemToRemove);
@@ -564,7 +650,7 @@ public class UIManager : MonoBehaviour
         if (string.IsNullOrEmpty(randomItem.Id)) randomItem.Id = System.Guid.NewGuid().ToString();
 
         _inventory.Add(randomItem);
-        SpawnVisualBox(randomItem);
+        //SpawnVisualBox(randomItem);
         _itemListView.RefreshItems();
         UpdateMetrics();
     }
@@ -792,10 +878,23 @@ public class UIManager : MonoBehaviour
 
     private void OnGenerateClicked()
     {
-        if (_inventory.Count == 0) return;
-        StartCoroutine(MockAPICallRoutine());
-    }
+        if (backendClient == null || !backendClient.IsBackendReady)
+        {
+        Debug.LogWarning("Backend is not ready yet.");
+        return;
+        }
 
+        // Prevent clicking if there are no boxes
+        if (_inventory.Count == 0)
+        {
+            Debug.LogWarning("Cannot generate: Truck is empty!");
+            return;
+        }
+
+        // Start the fake waiting process
+        StartCoroutine(backendClient.SendPackRequest(BuildPackingRequest(), OnPackSuccess, OnPackError));
+    }
+    /*
     private System.Collections.IEnumerator MockAPICallRoutine()
     {
         if (_loadingOverlay != null) _loadingOverlay.style.display = DisplayStyle.Flex;
@@ -841,22 +940,21 @@ public class UIManager : MonoBehaviour
 
             if (request.result != UnityWebRequest.Result.Success)
             {
-                Debug.LogError("API Error: " + request.error);
+                Destroy(rb); // Remove physics entirely for the result view
             }
-            else
-            {
-                Debug.Log("Python API Success!");
-                string responsePath = Path.Combine(Application.persistentDataPath, "pack_response.json");
-                File.WriteAllText(responsePath, request.downloadHandler.text);
-            }
+
+            // B. Move the box to its new "Calculated" coordinate
+            // We add Height/2 because Unity objects spawn from their center, not the bottom
+            box.transform.position = new Vector3(currentX, item.Height / 2f, currentZ);
+
+            // C. Increment the coordinates so the next box goes next to it
+            currentZ += item.Length + 0.2f; // Add a tiny gap
+            currentX += item.Width + 0.2f;
         }
 
-        SetAppMode(false);
-        if (_loadingOverlay != null) _loadingOverlay.style.display = DisplayStyle.None;
-
-        WritePackResponseJSON();
-    }
-
+        Debug.Log("Boxes snapped to final positions!");
+    } */
+    // True = Show List, False = Show 3D Truck
     public void SetAppMode(bool isInventoryMode)
     {
         var leftPanel = GetComponent<UIDocument>().rootVisualElement.Q<VisualElement>("LeftPanel");
