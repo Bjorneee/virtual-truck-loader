@@ -67,3 +67,11 @@ VisualElement {
     color: rgb(255, 255, 255);
     -unity-font-style: normal;
 }
+
+.unity-progress-bar__progress {
+    background-color: rgb(46, 139, 87);
+}
+
+.unity-progress-bar__background {
+    background-color: rgb(51, 51, 51);
+}
