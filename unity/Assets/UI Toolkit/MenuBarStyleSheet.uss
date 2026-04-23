@@ -32,11 +32,4 @@
     border-bottom-color: rgb(63, 63, 63);
 }
 
-.dropdownMenu {
-    background-color: rgb(29, 31, 33);
-    background-size: 100% 100%;
-    display: flex;
-    width: 0;
-}
-
 
