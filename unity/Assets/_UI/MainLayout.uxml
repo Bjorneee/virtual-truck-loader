@@ -1,22 +1,23 @@
 <ui:UXML xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:ui="UnityEngine.UIElements" xmlns:uie="UnityEditor.UIElements" noNamespaceSchemaLocation="../../UIElementsSchema/UIElements.xsd" editor-extension-mode="False">
     <Style src="project://database/Assets/_UI/MainStyles.uss?fileID=7433441132597879392&amp;guid=f1217d311cc53a94580edc6141f5d6b5&amp;type=3#MainStyles"/>
-    <ui:VisualElement name="RootContainer" picking-mode="Ignore" style="flex-grow: 1; height: 100%;">
-        <ui:VisualElement name="TopBar" style="flex-grow: 0; height: 80px; background-color: rgb(30, 31, 34); flex-direction: row; align-items: center; padding-left: 10px; flex-shrink: 0; margin-bottom: 0;">
-            <ui:Button text="💾 Save" name="BtnSave" class="toolbar-button"/>
-            <ui:Button text="📂 File" name="BtnFile" class="toolbar-button"/>
-            <ui:Button text="➕ Add" name="BtnAddMenu" class="toolbar-button"/>
-            <ui:Button text="📥 Load" name="BtnLoad" class="toolbar-button"/>
-            <ui:Button text="📦 Pack" name="BtnSort" selectable="true" double-click-selects-word="false" triple-click-selects-line="false" class="toolbar-button"/>
-            <ui:Button text="👁️ View" name="BtnView" class="toolbar-button"/>
-            <ui:Button text="⚙️ Settings" name="BtnSettings" class="toolbar-button"/>
+    <Style src="project://database/Assets/UI%20Toolkit/MenuBarStyleSheet.uss?fileID=7433441132597879392&amp;guid=f8e434e3689cdcf4bb3a394e7ea5c56f&amp;type=3#MenuBarStyleSheet"/>
+    <ui:VisualElement name="RootContainer" picking-mode="Ignore" style="flex-grow: 1; height: auto;">
+        <ui:VisualElement name="MenuContainer" class="menubar" style="align-items: center;">
+            <ui:Button text="File&#10;" name="BtnFile" class="menuButton" style="height: auto; flex-grow: 0; flex-shrink: 0; -unity-font-style: normal; -unity-font-definition: url(&quot;project://database/Assets/UI%20Toolkit/UnityThemes/UnityDefaultRuntimeTheme.tss?fileID=2230732570650464555&amp;guid=a02abea73177f7442b8029488b976798&amp;type=3#NotInter-Regular&quot;); margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; border-top-width: 0; border-right-width: 0; border-bottom-width: 0; border-left-width: 0;"/>
+            <ui:Button text="Save" name="BtnSave" class="menuButton" style="height: auto; flex-grow: 0; flex-shrink: 0; -unity-font-style: normal; -unity-font-definition: url(&quot;project://database/Assets/UI%20Toolkit/UnityThemes/UnityDefaultRuntimeTheme.tss?fileID=2230732570650464555&amp;guid=a02abea73177f7442b8029488b976798&amp;type=3#NotInter-Regular&quot;); margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; border-top-width: 0; border-right-width: 0; border-bottom-width: 0; border-left-width: 0;"/>
+            <ui:Button text="Load" name="BtnLoad" class="menuButton" style="height: auto; flex-grow: 0; flex-shrink: 0; -unity-font-style: normal; -unity-font-definition: url(&quot;project://database/Assets/UI%20Toolkit/UnityThemes/UnityDefaultRuntimeTheme.tss?fileID=2230732570650464555&amp;guid=a02abea73177f7442b8029488b976798&amp;type=3#NotInter-Regular&quot;); margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; border-top-width: 0; border-right-width: 0; border-bottom-width: 0; border-left-width: 0;"/>
+            <ui:Button text="Add" name="BtnAddMenu" class="menuButton" style="height: auto; flex-grow: 0; flex-shrink: 0; -unity-font-style: normal; -unity-font-definition: url(&quot;project://database/Assets/UI%20Toolkit/UnityThemes/UnityDefaultRuntimeTheme.tss?fileID=2230732570650464555&amp;guid=a02abea73177f7442b8029488b976798&amp;type=3#NotInter-Regular&quot;); margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; border-top-width: 0; border-right-width: 0; border-bottom-width: 0; border-left-width: 0;"/>
+            <ui:Button text="Pack" name="BtnSort" class="menuButton" style="height: auto; flex-grow: 0; flex-shrink: 0; -unity-font-style: normal; -unity-font-definition: url(&quot;project://database/Assets/UI%20Toolkit/UnityThemes/UnityDefaultRuntimeTheme.tss?fileID=2230732570650464555&amp;guid=a02abea73177f7442b8029488b976798&amp;type=3#NotInter-Regular&quot;); margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; border-top-width: 0; border-right-width: 0; border-bottom-width: 0; border-left-width: 0;"/>
+            <ui:Button text="View" name="BtnView" class="menuButton" style="height: auto; flex-grow: 0; flex-shrink: 0; -unity-font-style: normal; -unity-font-definition: url(&quot;project://database/Assets/UI%20Toolkit/UnityThemes/UnityDefaultRuntimeTheme.tss?fileID=2230732570650464555&amp;guid=a02abea73177f7442b8029488b976798&amp;type=3#NotInter-Regular&quot;); margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; border-top-width: 0; border-right-width: 0; border-bottom-width: 0; border-left-width: 0;"/>
+            <ui:Button text="Settings" name="BtnSettings" class="menuButton" style="height: auto; flex-grow: 0; flex-shrink: 0; -unity-font-style: normal; -unity-font-definition: url(&quot;project://database/Assets/UI%20Toolkit/UnityThemes/UnityDefaultRuntimeTheme.tss?fileID=2230732570650464555&amp;guid=a02abea73177f7442b8029488b976798&amp;type=3#NotInter-Regular&quot;); margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0; border-top-width: 0; border-right-width: 0; border-bottom-width: 0; border-left-width: 0;"/>
         </ui:VisualElement>
         <ui:VisualElement name="MainContent" picking-mode="Ignore" style="flex-grow: 1; flex-direction: row; margin-top: 0; padding-top: 0; align-items: stretch; justify-content: space-between;">
-            <ui:VisualElement name="LeftPanel" style="flex-grow: 2; width: 25%; background-color: rgb(43, 45, 49); margin-top: 0; height: auto; border-top-left-radius: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; border-bottom-left-radius: 0; padding-top: 15px; padding-right: 15px; padding-bottom: 15px; padding-left: 15px; border-top-width: 0; border-right-width: 0; border-bottom-width: 0; border-left-width: 0; align-self: auto; flex-direction: column; flex-wrap: wrap; max-width: 20%;">
+            <ui:VisualElement name="LeftPanel" style="flex-grow: 2; width: auto; background-color: rgb(43, 45, 49); margin-top: 0; height: auto; border-top-left-radius: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; border-bottom-left-radius: 0; padding-top: 15px; padding-right: 15px; padding-bottom: 15px; padding-left: 15px; border-top-width: 0; border-right-width: 0; border-bottom-width: 0; border-left-width: 0; align-self: auto; flex-direction: column; flex-wrap: wrap;">
                 <ui:Label text="Truck Dimensions&#10;" name="TruckDimensions" class="text-light" style="-unity-font-style: bold; margin-top: 10px; margin-left: 5px;"/>
                 <ui:VisualElement name="TruckSettings" style="flex-grow: 0; flex-direction: row; align-items: center; height: auto; border-left-color: rgb(229, 229, 229); border-right-color: rgb(229, 229, 229); border-top-color: rgb(229, 229, 229); border-bottom-color: rgb(229, 229, 229); border-bottom-width: 0; border-top-width: 0; flex-shrink: 0;">
-                    <ui:FloatField label="L" value="10" name="TruckL" class="text-light truck-input input-field" style="width: auto; flex-grow: 1; margin-right: 5px;" />
-                    <ui:FloatField label="W" value="10" name="TruckW" class="text-light truck-input input-field" style="width: auto; flex-grow: 1; margin-right: 5px;" />
-                    <ui:FloatField label="H" value="10" name="TruckH" class="text-light truck-input input-field" style="width: auto; flex-grow: 1;" />
+                    <ui:FloatField label="L" value="10" name="TruckL" class="text-light truck-input input-field" style="width: auto; flex-grow: 1; margin-right: 5px;"/>
+                    <ui:FloatField label="W" value="10" name="TruckW" class="text-light truck-input input-field" style="width: auto; flex-grow: 1; margin-right: 5px;"/>
+                    <ui:FloatField label="H" value="10" name="TruckH" class="text-light truck-input input-field" style="width: auto; flex-grow: 1;"/>
                 </ui:VisualElement>
                 <ui:Label text="Inventory List&#10;" name="Stats" class="text-light" style="-unity-font-style: bold; padding-top: 4px; margin-top: 10px; margin-left: 0; border-top-width: 1px; border-left-color: rgb(255, 250, 250); border-right-color: rgb(255, 250, 250); border-top-color: rgb(255, 250, 250); border-bottom-color: rgb(255, 250, 250); margin-right: 0;"/>
                 <ui:VisualElement name="ListWrapper" style="flex-grow: 1;">
@@ -26,27 +27,27 @@
                     </ui:VisualElement>
                     <ui:Button text="+" name="BtnAdd" style="height: 60px; background-color: rgb(43, 45, 49); color: rgb(255, 255, 255); position: absolute; bottom: 10px; right: 10px; width: 60px; border-top-left-radius: 30px; border-top-right-radius: 30px; border-bottom-right-radius: 30px; border-bottom-left-radius: 30px; font-size: 30px;"/>
                 </ui:VisualElement>
-                <ui:VisualElement name="StatsFooter" style="flex-grow: 1; border-top-width: 1px; border-left-color: rgb(255, 250, 250); border-right-color: rgb(255, 250, 250); border-top-color: rgb(255, 250, 250); border-bottom-color: rgb(255, 250, 250); margin-top: 5px; padding-top: 5px; flex-shrink: 0;">
-                    <ui:Label text="Total Weight: 0 kg&#10;" name="LblWeight" class="text-light" />
-                    <ui:Label text="Volume Used: 0.0%" name="LblVolume" class="text-light" />
-                    <ui:ProgressBar value="0" name="BarVolume" />
+                <ui:VisualElement name="StatsFooter" style="flex-grow: 0; border-top-width: 1px; border-left-color: rgb(255, 250, 250); border-right-color: rgb(255, 250, 250); border-top-color: rgb(255, 250, 250); border-bottom-color: rgb(255, 250, 250); margin-top: 5px; padding-top: 5px; flex-shrink: 0;">
+                    <ui:Label text="Total Weight: 0 kg&#10;" name="LblWeight" class="text-light"/>
+                    <ui:Label text="Volume Used: 0.0%" name="LblVolume" class="text-light"/>
+                    <ui:ProgressBar value="0" name="BarVolume"/>
                 </ui:VisualElement>
                 <ui:Button text="🚀 GENERATE LOADOUT" name="BtnGenerate" class="text-light" style="height: 40px; background-color: rgb(35, 165, 89); -unity-font-style: bold; border-top-left-radius: 8px; border-top-right-radius: 8px; border-bottom-right-radius: 8px; border-bottom-left-radius: 8px; font-size: 16px;"/>
             </ui:VisualElement>
-            <ui:VisualElement name="CenterView" picking-mode="Ignore" style="flex-grow: 2; background-color: rgba(0, 0, 0, 0); width: 200px;">
-                <ui:Button text="⬅ Back to List" name="BtnBack" selectable="false" focusable="false" class="text-light" style="background-color: rgb(43, 45, 49); position: absolute;" />
+            <ui:VisualElement name="CenterView" picking-mode="Ignore" style="flex-grow: 2; background-color: rgba(0, 0, 0, 0); width: auto;">
+                <ui:Button text="⬅ Back to List" name="BtnBack" selectable="false" focusable="false" class="text-light" style="background-color: rgb(43, 45, 49); position: absolute;"/>
             </ui:VisualElement>
             <ui:VisualElement name="RightPanel" style="flex-grow: 0; width: 350px; background-color: rgb(43, 45, 49); flex-shrink: 0; margin-top: 0; border-top-left-radius: 0; border-top-right-radius: 0; border-bottom-right-radius: 0; border-bottom-left-radius: 0; padding-top: 8px; padding-right: 8px; padding-bottom: 8px; padding-left: 8px; -unity-background-image-tint-color: rgb(43, 45, 49);">
-                <ui:VisualElement name="PreviewBox" style="flex-grow: 1; height: 200px; justify-content: center; align-items: center; background-image: url(&quot;project://database/Assets/_UI/BoxPreviewTexture.renderTexture?fileID=8400000&amp;guid=44f12a8d12c14f34199ac2bafae8bf2c&amp;type=2#BoxPreviewTexture&quot;);" />
+                <ui:VisualElement name="PreviewBox" style="flex-grow: 1; height: 200px; justify-content: center; align-items: center; background-image: url(&quot;project://database/Assets/_UI/BoxPreviewTexture.renderTexture?fileID=8400000&amp;guid=44f12a8d12c14f34199ac2bafae8bf2c&amp;type=2#BoxPreviewTexture&quot;);"/>
                 <ui:ScrollView style="flex-grow: 1;">
-                    <ui:Label text="Package Properties" name="Property" class="text-light" style="-unity-font-style: bold; margin-left: 4px; margin-top: 10px;" />
-                    <ui:TextField label="Item Name" name="InputItemName" class="text-light" />
-                    <ui:FloatField label="Length(m)" value="1" name="InputLength" class="text-light" />
-                    <ui:FloatField label="Width(m)" value="1" name="InputWidth" class="text-light" />
-                    <ui:FloatField label="Height(m)" value="1" name="InputHeight" class="text-light" />
-                    <ui:FloatField label="Weight(kg)" value="1" name="InputWeight" class="text-light" />
-                    <ui:DropdownField label=" Item Group" name="InputGroup" choices="Standard ,Fragile,Heavy,Electronics" index="0" class="text-light" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0;" />
-                    <ui:Toggle label="Stackable?" name="ToggleStackable" class="text-light" />
+                    <ui:Label text="Package Properties" name="Property" class="text-light" style="-unity-font-style: bold; margin-left: 4px; margin-top: 10px;"/>
+                    <ui:TextField label="Item Name" name="InputItemName" class="text-light"/>
+                    <ui:FloatField label="Length(m)" value="1" name="InputLength" class="text-light"/>
+                    <ui:FloatField label="Width(m)" value="1" name="InputWidth" class="text-light"/>
+                    <ui:FloatField label="Height(m)" value="1" name="InputHeight" class="text-light"/>
+                    <ui:FloatField label="Weight(kg)" value="1" name="InputWeight" class="text-light"/>
+                    <ui:DropdownField label=" Item Group" name="InputGroup" choices="Standard ,Fragile,Heavy,Electronics" index="0" class="text-light" style="margin-top: 0; margin-right: 0; margin-bottom: 0; margin-left: 0;"/>
+                    <ui:Toggle label="Stackable?" name="ToggleStackable" class="text-light"/>
                 </ui:ScrollView>
             </ui:VisualElement>
         </ui:VisualElement>

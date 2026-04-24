@@ -1,0 +1,35 @@
+:root {
+}
+
+.menubar {
+    height: 25px;
+    flex-direction: row;
+    flex-wrap: wrap;
+    background-color: rgb(29, 31, 33);
+    background-size: 100% 100%;
+    -unity-material: url("");
+}
+
+.menuButton {
+    height: 25px;
+    background-color: rgb(29, 31, 33);
+    border-left-color: rgb(40, 40, 40);
+    border-right-color: rgb(40, 40, 40);
+    border-top-color: rgb(40, 40, 40);
+    border-bottom-color: rgb(40, 40, 40);
+    color: rgb(115, 115, 115);
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+    border-bottom-left-radius: 0;
+}
+
+.menuButton:hover {
+    background-color: rgb(56, 58, 64);
+    border-left-color: rgb(63, 63, 63);
+    border-right-color: rgb(63, 63, 63);
+    border-top-color: rgb(63, 63, 63);
+    border-bottom-color: rgb(63, 63, 63);
+}
+
+
