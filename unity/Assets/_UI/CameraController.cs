@@ -33,7 +33,7 @@ public class CameraController : MonoBehaviour
             _currentRotation.x += Input.GetAxis("Mouse X") * rotationSpeed;
             _currentRotation.y -= Input.GetAxis("Mouse Y") * rotationSpeed;
             // Limit vertical angle so you don't go under the floor
-            _currentRotation.y = Mathf.Clamp(_currentRotation.y, 5f, 85f);
+            _currentRotation.y = Mathf.Clamp(_currentRotation.y, 0f, 89.9f);
         }
 
         // 2. PAN (Middle Mouse OR Shift + Right Click)
@@ -65,14 +65,12 @@ public class CameraController : MonoBehaviour
         transform.rotation = rotation;
         transform.position = position;
     }
-    public void SetViewAngle(Vector3 newRotation)
+    public void SetViewAngle(float pitch, float yaw)
     {
-        _currentRotation = newRotation;
+        _currentRotation.y = pitch; // Up/Down angle
+        _currentRotation.x = yaw;   // Left/Right angle
 
-        // Optional: Reset zoom to default so you don't get lost
-        _currentZoom = 15f;
-
-        // Reset panning offset so you look straight at the truck
-        _targetOffset = Vector3.zero;
+        _currentZoom = 15f;         // Reset zoom so we don't get lost
+        _targetOffset = Vector3.zero; // Reset pan so we look at the center
     }
 }

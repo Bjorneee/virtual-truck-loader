@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.IO; // Required for writing files
 using UnityEngine;
 using UnityEngine.UIElements;
 using System.IO;
@@ -664,14 +663,14 @@ public class UIManager : MonoBehaviour
 
         switch (_currentViewIndex)
         {
-            case 0:
-                cameraControl.SetViewAngle(new Vector3(35, 45, 0));
+            case 0: // ISOMETRIC (Looking down at an angle)
+                cameraControl.SetViewAngle(35f, 45f);
                 break;
-            case 1:
-                cameraControl.SetViewAngle(new Vector3(90, 0, 0));
+            case 1: // TOP DOWN (Looking straight down from the sky)
+                cameraControl.SetViewAngle(89.9f, 0f);
                 break;
-            case 2:
-                cameraControl.SetViewAngle(new Vector3(0, -90, 0));
+            case 2: // SIDE VIEW (Looking flat from the right side)
+                cameraControl.SetViewAngle(0f, 90f);
                 break;
         }
     }
@@ -962,12 +961,22 @@ public class UIManager : MonoBehaviour
 
         if (isInventoryMode)
         {
-            if (leftPanel != null) leftPanel.style.display = DisplayStyle.Flex;
+            if (leftPanel != null)
+            {
+                leftPanel.style.display = DisplayStyle.Flex;
+
+                // NEW: Force the Left Panel to stretch across the empty middle screen!
+                leftPanel.style.flexGrow = 1;
+            }
             if (centerView != null) centerView.style.display = DisplayStyle.None;
         }
         else
         {
-            if (leftPanel != null) leftPanel.style.display = DisplayStyle.None;
+            if (leftPanel != null)
+            {
+                leftPanel.style.display = DisplayStyle.None;
+                leftPanel.style.flexGrow = 0; // Reset it when hidden
+            }
             if (centerView != null) centerView.style.display = DisplayStyle.Flex;
         }
     }
