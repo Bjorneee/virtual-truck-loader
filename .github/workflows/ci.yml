@@ -64,24 +64,23 @@ jobs:
             --cov-report=term-missing \
             --cov-report=xml:docs/evaluation/coverage-report/coverage.xml \
             --cov-report=html:docs/evaluation/coverage-report/coverage \
+            --cov-report=markdown:docs/evaluation/coverage-report/report.md \
             --cov-fail-under=70 \
             --junitxml=docs/evaluation/coverage-report/test-results.xml
-
-      - name: Upload test reports and coverage
-        uses: actions/upload-artifact@v4
-        with:
-          name: coverage-html
-          path: docs/evaluation/coverage-report/
-          retention-days: 7
       
-      - name: Extract coverage from report.md
+      - name: Extract coverage from coverage.xml
         id: coverage
         shell: bash
         run: |
-          COVERAGE=$(grep '\*\*TOTAL\*\*' docs/evaluation/coverage-report/report.md \
-            | grep -oE '[0-9]+%' \
-            | tail -1 \
-            | tr -d '%')
+          COVERAGE=$(python - <<'EOF'
+          import xml.etree.ElementTree as ET
+
+          tree = ET.parse("docs/evaluation/coverage-report/coverage.xml")
+          root = tree.getroot()
+          rate = float(root.attrib["line-rate"]) * 100
+          print(round(rate))
+          EOF
+          )
 
           echo "coverage=$COVERAGE" >> "$GITHUB_OUTPUT"
           echo "Coverage: $COVERAGE%"
@@ -95,3 +94,11 @@ jobs:
           else COLOR="red"; fi
 
           echo "![Coverage](https://img.shields.io/badge/coverage-${COVERAGE}%25-${COLOR})" > coverage-badge.md
+
+      - name: Upload test reports and coverage
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage-html-py${{ matrix.python-version }}
+          path: |
+            docs/evaluation/coverage-report/coverage-badge.md
+          retention-days: 7
