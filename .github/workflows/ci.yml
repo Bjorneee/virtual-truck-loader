@@ -8,6 +8,8 @@ on:
       - main
       - develop
       - feature/**
+    paths-ignore:
+      - README.md
   pull_request:
     branches:
       - main
@@ -105,6 +107,12 @@ jobs:
             docs/evaluation/coverage-report/coverage-badge.md
           retention-days: 7
 
+      - name: Sync branch before badge update
+        if: matrix.python-version == '3.12' && github.event_name == 'push' && github.ref == 'refs/heads/main'
+        shell: bash
+        run: |
+          git pull --rebase origin main
+
       - name: Update README coverage badge
         if: matrix.python-version == '3.12' && github.event_name == 'push' && github.ref == 'refs/heads/main'
         shell: bash
@@ -146,8 +154,6 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git pull --rebase origin main
 
           git add README.md
           git diff --cached --quiet && echo "No badge changes" && exit 0
