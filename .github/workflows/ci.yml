@@ -1,4 +1,6 @@
 name: CI
+permissions:
+  contents: write
 
 on:
   push:
@@ -102,3 +104,48 @@ jobs:
           path: |
             docs/evaluation/coverage-report/coverage-badge.md
           retention-days: 7
+
+      - name: Update README coverage badge
+        if: matrix.python-version == '3.12'
+        shell: bash
+        run: |
+          COVERAGE=${{ steps.coverage.outputs.coverage }}
+
+          if [ "$COVERAGE" -ge 90 ]; then COLOR="brightgreen";
+          elif [ "$COVERAGE" -ge 70 ]; then COLOR="green";
+          elif [ "$COVERAGE" -ge 50 ]; then COLOR="yellow";
+          else COLOR="red"; fi
+
+          BADGE="![Coverage](https://img.shields.io/badge/coverage-${COVERAGE}%25-${COLOR})"
+
+          python - <<EOF
+          from pathlib import Path
+
+          readme = Path("README.md")
+          text = readme.read_text(encoding="utf-8")
+
+          start = "<!-- coverage-badge-start -->"
+          end = "<!-- coverage-badge-end -->"
+          badge = """$BADGE"""
+
+          block = f"{start}\\n{badge}\\n{end}"
+
+          if start in text and end in text:
+              before = text.split(start)[0]
+              after = text.split(end)[1]
+              text = before + block + after
+          else:
+              text = block + "\\n\\n" + text
+
+          readme.write_text(text, encoding="utf-8")
+          EOF
+
+      - name: Commit updated coverage badge
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add README.md coverage-badge.md
+          git commit -m "Update coverage badge" || echo "No badge changes"
+          git push

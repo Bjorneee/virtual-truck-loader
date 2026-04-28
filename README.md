@@ -1,4 +1,6 @@
-![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)
+<!-- coverage-badge-start -->
+![Coverage](https://img.shields.io/badge/coverage-91%25-brightgreen)
+<!-- coverage-badge-end -->
 
 # virtual-truck-loader
 Virtual truck loading application. Made for SJSU CMPE195 F25-S26 Senior Project.
