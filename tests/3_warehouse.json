@@ -3,7 +3,7 @@
     "id": "Warehouse",
     "width": 2.4,
     "height": 2.6,
-    "depth": 12.0,
+    "depth": 4.0,
     "max_weight": 12000
   },
   "boxes": [

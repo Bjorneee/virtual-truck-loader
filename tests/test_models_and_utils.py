@@ -1,5 +1,3 @@
-import pytest
-
 from python.vtl_core.domain.models import Box_t, PlacedBox_t, Truck_t
 from python.vtl_core.utils import (
     _compute_local_extents,
@@ -31,13 +29,6 @@ def test_box_volume_and_footprint_properties():
     assert box.footprint == 8.0
     assert truck.volume == 30.0
     assert truck.floor_area == 10.0
-
-
-def test_box_rotate_property_is_currently_broken_and_guarded_by_test():
-    box = make_box('x', 1.0, 2.0, 3.0)
-
-    with pytest.raises(TypeError):
-        _ = box.rotate
 
 
 def test_split_same_type_prefix_stops_at_first_different_type_and_sorts_within_batch():

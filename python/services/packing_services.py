@@ -19,4 +19,8 @@ def run_packing(req: PackingRequest) -> PackingResponse:
 
     # Record runtime
     pack_result["runtime_ms"] = (time.time() - start) * 1000
+
+    for note in pack_result["notes"]:
+        print(note)
+
     return PackingResponse(**pack_result)

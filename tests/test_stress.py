@@ -129,35 +129,35 @@ def exercise_payload(payload: dict):
 
 
 def test_stress_dense_small_boxes():
-    payload = small_box_payload(180)
+    payload = small_box_payload(1000)
     data, wall_ms = exercise_payload(payload)
     assert len(data['placed']) > 0
     assert wall_ms < 30000
 
 
 def test_stress_warehouse_repeated():
-    payload = with_suffix(load_payload('3_warehouse.json'), 5)
+    payload = with_suffix(load_payload('3_warehouse.json'), 50)
     data, wall_ms = exercise_payload(payload)
     assert len(data['placed']) > 0
     assert wall_ms < 30000
 
 
 def test_stress_fragmentation_repeated():
-    payload = with_suffix(load_payload('11_fragmentation.json'), 4)
+    payload = with_suffix(load_payload('11_fragmentation.json'), 50)
     data, wall_ms = exercise_payload(payload)
     assert len(data['placed']) > 0
     assert wall_ms < 30000
 
 
 def test_stress_mixed_with_oversized_boxes():
-    payload = mixed_with_oversized_payload(80, 20)
+    payload = mixed_with_oversized_payload(800, 200)
     data, wall_ms = exercise_payload(payload)
     assert len(data['unplaced']) >= 20
     assert wall_ms < 30000
 
 
 def test_stress_multilayer_same_type_stack():
-    payload = multilayer_payload(72)
+    payload = multilayer_payload(100)
     data, wall_ms = exercise_payload(payload)
     ys = sorted({round(p['y'], 6) for p in data['placed']})
     assert len(data['placed']) > 0

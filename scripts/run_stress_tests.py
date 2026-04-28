@@ -101,11 +101,11 @@ def validate(payload, data):
 
 
 scenarios = [
-    ('dense-small-180', small_box_payload(180), 'High item count using identical small cubes to stress region growth and repeated layer creation.'),
-    ('warehouse-x5', with_suffix(load_payload('3_warehouse.json'), 5), 'Realistic mixed warehouse load repeated five times to stress dynamic heuristic selection.'),
-    ('fragmentation-x4', with_suffix(load_payload('11_fragmentation.json'), 4), 'Amplified fragmentation scenario to stress support rectangle and sub-region reuse.'),
-    ('mixed-oversized', mixed_with_oversized_payload(80, 20), 'Large mixed load with intentionally impossible boxes to stress negative-path handling.'),
-    ('multilayer-72', multilayer_payload(72), 'Uniform stackable boxes sized to force multiple Y-levels in the same truck.'),
+    ('dense-small-1000', small_box_payload(1000), 'High item count using identical small cubes to stress region growth and repeated layer creation.'),
+    ('warehouse-x50', with_suffix(load_payload('3_warehouse.json'), 50), 'Realistic mixed warehouse load repeated five times to stress dynamic heuristic selection.'),
+    ('fragmentation-x50', with_suffix(load_payload('11_fragmentation.json'), 50), 'Amplified fragmentation scenario to stress support rectangle and sub-region reuse.'),
+    ('mixed-oversized', mixed_with_oversized_payload(800, 200), 'Large mixed load with intentionally impossible boxes to stress negative-path handling.'),
+    ('multilayer-100', multilayer_payload(100), 'Uniform stackable boxes sized to force multiple Y-levels in the same truck.'),
 ]
 
 rows = []

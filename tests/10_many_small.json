@@ -1,9 +1,9 @@
 {
   "truck": {
     "id": "Many_Small",
-    "width": 2.0,
-    "height": 2.0,
-    "depth": 6.0,
+    "width": 0.5,
+    "height": 0.75,
+    "depth": 1.25,
     "max_weight": 3000
   },
   "boxes": [

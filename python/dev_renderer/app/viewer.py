@@ -74,7 +74,6 @@ class SimpleSceneViewer(ShowBase):
 
             print("Truck: ", payload["truck"].get("id"))
             print("Utilization: ", result.get("utilization"))
-            print("Notes: ", result.get("notes"))
         
         except Exception as e:
             print("Failed to load from API: ", e)

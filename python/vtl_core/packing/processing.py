@@ -92,7 +92,7 @@ def get_best_heuristic_for_region(current_truck: Truck_t, current_batch: List[Bo
     return best_algo
 
 def begin_pack(truck: Truck_t, boxes: List[Box_t]) -> Dict[str, Any]:
-    print(f"\n🔍 Evaluating {len(boxes)} boxes with Regional Dynamic Selection...")
+    print(f"\nEvaluating {len(boxes)} boxes with Regional Dynamic Selection...")
     start_time = time.time()
     original_load = copy.deepcopy(boxes)
 
@@ -104,9 +104,12 @@ def begin_pack(truck: Truck_t, boxes: List[Box_t]) -> Dict[str, Any]:
     score_data = engine.get_all_scores(placed_internal, original_load)
 
     # Format output for the API/Unity
-    notes.insert(0, "⭐ REGIONAL DYNAMIC SELECTION ACTIVE")
-    notes.append("===================================")
-    notes.append(f"📊 FINAL SCORE: {score_data['total_score'] * 100:.2f} / 100")
+    notes.insert(0, "\n[REGIONAL DYNAMIC SELECTION RESULTS]")
+    notes.append("\n===================================")
+    notes.append(f"> UTILIZATION: {score_data['utilization'] * 100:.2f} %")
+    notes.append(f"> STABILITY: {score_data['stability'] * 100:.2f} %")
+    notes.append(f"> MASS BALANCE: {score_data['mass_balance'] * 100:.2f} %")
+    notes.append(f"> FINAL SCORE: {score_data['total_score'] * 100:.2f} / 100")
     notes.append("===================================")
 
     placed = [PlacedBox(id=pb.id, x=pb.x, y=pb.y, z=pb.z, rotation=getattr(pb, 'rotation', 0)) for pb in placed_internal]
@@ -115,13 +118,12 @@ def begin_pack(truck: Truck_t, boxes: List[Box_t]) -> Dict[str, Any]:
     best_payload = {
         "placed": placed,
         "unplaced": unplaced,
-        "utilization": score_data["total_score"],
-        "notes": notes,
-        "metrics": score_data,
-        "runtime_ms": (time.time() - start_time) * 1000
+        "utilization": score_data["utilization"],
+        "runtime_ms": (time.time() - start_time) * 1000,
+        "notes": notes
     }
     
-    print(f"✅ Dynamic Evaluation complete in {best_payload['runtime_ms']:.2f}ms")
+    print(f"Dynamic Evaluation complete in {best_payload['runtime_ms']:.2f}ms")
     return best_payload
 
 def layer_pack(
@@ -169,30 +171,30 @@ def layer_pack(
         match heuristic:
             case Hstix.FFR:
                 layer_data = ff_row_pack(truck=local_truck, boxes=boxes, layer_y=region.y)
-                notes.append(f"▶ Region {layer_index}: Selected [First-Fit Row]")
+                notes.append(f"\n> Region {layer_index}: Selected [First-Fit Row]")
             case Hstix.FFG:
                 layer_data = ff_guillotine_pack(truck=local_truck, boxes=boxes, layer_y=region.y)
-                notes.append(f"▶ Region {layer_index}: Selected [First-Fit Guillotine]")
+                notes.append(f"\n> Region {layer_index}: Selected [First-Fit Guillotine]")
             case Hstix.MAX:
                 layer_data = maxrects_pack(truck=local_truck, boxes=boxes, layer_y=region.y)
-                notes.append(f"▶ Region {layer_index}: Selected [MaxRects]")
+                notes.append(f"\n> Region {layer_index}: Selected [MaxRects]")
             case Hstix.SKY:
                 layer_data = skyline_pack(truck=local_truck, boxes=boxes, layer_y=region.y)
-                notes.append(f"▶ Region {layer_index}: Selected [Skyline]")
+                notes.append(f"\n> Region {layer_index}: Selected [Skyline]")
             case _:
                 raise ValueError("Invalid heuristic choice.")
 
         local_placed, layer_notes, used_h, x_cursor, z_cursor = layer_data
 
         notes.append(
-            f"  ↳ origin=({region.x:.3f}, {region.y:.3f}, {region.z:.3f}) "
+            f"\t↳ origin=({region.x:.3f}, {region.y:.3f}, {region.z:.3f}) | "
             f"size=({region.width:.3f}, {region.depth:.3f}, {region.height:.3f})"
         )
         notes.extend(layer_notes)
 
         # If nothing was placed here, skip this region and continue with the next one.
         if not local_placed:
-            notes.append("  ↳ No boxes placed in this region.")
+            notes.append("\t↳ No boxes placed in this region.")
             layer_index += 1
             continue
 
@@ -201,6 +203,8 @@ def layer_pack(
 
         # Translate x/z into absolute coordinates of the original truck.
         _translate_placements(local_placed, region.x, region.z)
+        for lp in local_placed:
+            notes.append(f"Box [{lp.id}] placed at ({lp.x}, {lp.y}, {lp.z})")
 
         placed.extend(local_placed)
 
