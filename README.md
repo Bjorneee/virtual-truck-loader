@@ -1,3 +1,5 @@
+![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)
+
 # virtual-truck-loader
 Virtual truck loading application. Made for SJSU CMPE195 F25-S26 Senior Project.
 
@@ -89,6 +91,3 @@ tests/
     - E2E Tests
     - Edge Case Tests
     - Stress Test
-
-## Coverage
-![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)
