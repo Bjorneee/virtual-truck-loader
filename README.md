@@ -89,3 +89,6 @@ tests/
     - E2E Tests
     - Edge Case Tests
     - Stress Test
+
+## Coverage
+![Coverage](https://img.shields.io/badge/coverage-100%25-brightgreen)

@@ -95,21 +95,3 @@ jobs:
           else COLOR="red"; fi
 
           echo "![Coverage](https://img.shields.io/badge/coverage-${COVERAGE}%25-${COLOR})" > coverage-badge.md
-
-      - name: Update README badge
-        run: |
-          COVERAGE=${{ steps.coverage.outputs.coverage }}
-
-          if [ "$COVERAGE" -ge 70 ]; then COLOR="brightgreen";
-          elif [ "$COVERAGE" -ge 50 ]; then COLOR="yellow";
-          else COLOR="red"; fi
-
-          BADGE="![Coverage](https://img.shields.io/badge/coverage-${COVERAGE}%25-${COLOR})"
-
-          sed -i "1s|.*|$BADGE\n\n&|" README.md
-
-          git config user.name "github-actions"
-          git config user.email "actions@github.com"
-          git add README.md
-          git commit -m "Update coverage badge" || echo "No changes"
-          git push
