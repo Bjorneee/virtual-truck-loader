@@ -16,7 +16,6 @@ from python.vtl_core.packing.heurisitics import (
     maxrects_pack,
     skyline_pack,
 )
-from python.vtl_core.packing.scoring import ScoringEngine
 
 _EPS = 1e-9
 
@@ -26,6 +25,133 @@ class Hstix(Enum):
     MAX = auto()
     SKY = auto()
 
+# ==========================================
+# 🧠 DYNAMIC SCORING ENGINE (Physics Based)
+# ==========================================
+class ScoringEngine:
+    def __init__(self, truck: Truck_t):
+        self.truck = truck
+
+    def _get_dims(self, p_box: PlacedBox_t, box_map: dict) -> Tuple[float, float, float, float]:
+        """Helper to safely retrieve dimensions and weight, accounting for rotation."""
+        orig = box_map.get(p_box.id)
+        if not orig:
+            return 0.0, 0.0, 0.0, 1.0
+
+        w, h, d = orig.width, orig.height, orig.depth
+        wt = getattr(orig, 'weight', 1.0)
+
+        # Swap width and depth if the box was rotated 90/270 degrees on the Y axis
+        rot = getattr(p_box, 'rotation', 0)
+        if rot == 1 or rot == 3:
+            w, d = d, w
+            
+        return w, h, d, wt
+
+    def get_all_scores(self, placed_boxes: List[PlacedBox_t], original_batch: List[Box_t]) -> Dict[str, float]:
+        """Calculates the weighted tournament score for a layout."""
+        if not placed_boxes:
+            return {"utilization": 0.0, "stability": 0.0, "mass_balance": 0.0, "total_score": 0.0}
+
+        # Create lookup map for dimensions/weights
+        box_map = {b.id: b for b in original_batch}
+
+        # Calculate metrics using the map
+        util_score = self._calc_utilization(placed_boxes, box_map)
+        stability_score = self._calc_stability(placed_boxes, box_map)
+        mass_score = self._calc_mass_balance(placed_boxes, box_map)
+
+        # Weighted Total (Matches the Slide Deck Formula)
+        total_score = (0.60 * util_score) + (0.30 * stability_score) + (0.10 * mass_score)
+
+        return {
+            "utilization": util_score,
+            "stability": stability_score,
+            "mass_balance": mass_score,
+            "total_score": total_score
+        }
+
+    def _calc_utilization(self, placed_boxes: List[PlacedBox_t], box_map: dict) -> float:
+        truck_vol = self.truck.width * self.truck.height * self.truck.depth
+        used_vol = 0.0
+        for b in placed_boxes:
+            w, h, d, _ = self._get_dims(b, box_map)
+            used_vol += (w * h * d)
+        return used_vol / truck_vol if truck_vol > 0 else 0.0
+
+    def _calc_stability(self, placed_boxes: List[PlacedBox_t], box_map: dict) -> float:
+        if not placed_boxes: 
+            return 0.0
+            
+        total_stability = 0.0
+
+        for box in placed_boxes:
+            b_w, b_h, b_d, _ = self._get_dims(box, box_map)
+            base_area = b_w * b_d
+            
+            # 100% supported if on the truck floor
+            if abs(box.y) < 1e-9:
+                total_stability += 1.0 
+                continue
+
+            supported_area = 0.0
+            for under in placed_boxes:
+                u_w, u_h, u_d, _ = self._get_dims(under, box_map)
+                
+                # Check if 'under' box is directly below 'box'
+                if abs((under.y + u_h) - box.y) < 0.001:
+                    # Calculate overlapping area on the X-Z plane
+                    overlap_x = max(0, min(box.x + b_w, under.x + u_w) - max(box.x, under.x))
+                    overlap_z = max(0, min(box.z + b_d, under.z + u_d) - max(box.z, under.z))
+                    supported_area += (overlap_x * overlap_z)
+
+            # Ratio of supported area to total base area
+            stability_ratio = min(1.0, supported_area / base_area) if base_area > 0 else 0
+            total_stability += stability_ratio
+
+        # Return average stability across all boxes
+        return total_stability / len(placed_boxes)
+
+    def _calc_mass_balance(self, placed_boxes: List[PlacedBox_t], box_map: dict) -> float:
+        if not placed_boxes: 
+            return 0.0
+
+        total_weight = sum(self._get_dims(b, box_map)[3] for b in placed_boxes)
+        if total_weight == 0: 
+            return 1.0
+
+        cog_x, cog_z = 0.0, 0.0
+        
+        # Calculate actual Center of Gravity (X and Z coordinates)
+        for b in placed_boxes:
+            b_w, _, b_d, b_wt = self._get_dims(b, box_map)
+            cog_x += (b.x + b_w / 2) * b_wt
+            cog_z += (b.z + b_d / 2) * b_wt
+            
+        cog_x /= total_weight
+        cog_z /= total_weight
+
+        # Ideal Center of Gravity is the exact center of the truck floor
+        ideal_x = self.truck.width / 2
+        ideal_z = self.truck.depth / 2
+
+        # Calculate deviation
+        deviation_x = abs(cog_x - ideal_x)
+        deviation_z = abs(cog_z - ideal_z)
+
+        # Normalize the deviation (1.0 = perfectly centered, 0.0 = entirely on the edge)
+        max_dev_x = self.truck.width / 2
+        max_dev_z = self.truck.depth / 2
+
+        score_x = 1.0 - (deviation_x / max_dev_x) if max_dev_x > 0 else 1.0
+        score_z = 1.0 - (deviation_z / max_dev_z) if max_dev_z > 0 else 1.0
+
+        return (score_x + score_z) / 2
+
+
+# ==========================================
+# 📦 CORE PACKING LOGIC
+# ==========================================
 def create_instances(req: PackingRequest) -> Tuple[Truck_t, List[Box_t]]:
     truck = Truck_t(
         id=req.truck.id,
@@ -51,10 +177,6 @@ def create_instances(req: PackingRequest) -> Tuple[Truck_t, List[Box_t]]:
     return truck, boxes
 
 def get_best_heuristic_for_region(current_truck: Truck_t, current_batch: List[Box_t], region: PackRegion) -> Hstix:
-    """
-    Simulates packing the current batch in the current region with all available heuristics,
-    scores them using the Math Engine, and returns the optimal Hstix enum.
-    """
     engine = ScoringEngine(current_truck)
     best_score = -1.0
     best_algo = Hstix.FFG # Default
@@ -71,20 +193,19 @@ def get_best_heuristic_for_region(current_truck: Truck_t, current_batch: List[Bo
         test_batch = copy.deepcopy(current_batch)
 
         try:
-            # 1. Run the simulation
             layer_data = algo_func(truck=test_truck, boxes=test_batch, layer_y=region.y)
             placed_in_batch = layer_data[0]
             
             if not placed_in_batch:
                 continue
 
-            # 2. Translate coordinates to absolute truck space for accurate scoring
             _translate_placements(placed_in_batch, region.x, region.z)
 
-            # 3. Score the layout
             score_data = engine.get_all_scores(placed_in_batch, test_batch)
-            if score_data["total_score"] > best_score:
-                best_score = score_data["total_score"]
+            current_score = score_data["total_score"]
+
+            if current_score > best_score:
+                best_score = current_score
                 best_algo = algo_enum
         except Exception:
             continue
@@ -107,11 +228,16 @@ def begin_pack(truck: Truck_t, boxes: List[Box_t]) -> Dict[str, Any]:
     notes.insert(0, "⭐ REGIONAL DYNAMIC SELECTION ACTIVE")
     notes.append("===================================")
     notes.append(f"📊 FINAL SCORE: {score_data['total_score'] * 100:.2f} / 100")
+    notes.append(f"   ↳ Utilization: {score_data['utilization'] * 100:.1f}%")
+    notes.append(f"   ↳ Stability:   {score_data['stability'] * 100:.1f}%")
+    notes.append(f"   ↳ Mass Bal:    {score_data['mass_balance'] * 100:.1f}%")
     notes.append("===================================")
 
+    # Convert internal models back to API models
     placed = [PlacedBox(id=pb.id, x=pb.x, y=pb.y, z=pb.z, rotation=getattr(pb, 'rotation', 0)) for pb in placed_internal]
     unplaced = [Box(id=b.id, width=b.width, height=b.height, depth=b.depth, weight=b.weight, priority=b.priority) for b in boxes]
 
+    # Return exactly the Dictionary payload the FastAPI router expects
     best_payload = {
         "placed": placed,
         "unplaced": unplaced,
@@ -132,7 +258,6 @@ def layer_pack(
     placed: List[PlacedBox_t] = []
     notes: List[str] = []
 
-    # Start with the full original truck as the first region.
     regions: List[PackRegion] = [
         PackRegion(
             x=0.0,
@@ -163,7 +288,6 @@ def layer_pack(
             max_weight=truck.max_weight,
         )
 
-        # --- THE HOOK: Dynamically select the best algorithm for this specific region ---
         heuristic = get_best_heuristic_for_region(local_truck, boxes, region)
 
         match heuristic:
@@ -190,21 +314,15 @@ def layer_pack(
         )
         notes.extend(layer_notes)
 
-        # If nothing was placed here, skip this region and continue with the next one.
         if not local_placed:
             notes.append("  ↳ No boxes placed in this region.")
             layer_index += 1
             continue
 
-        # Compute local envelope before translating to absolute truck coordinates.
         used_x, used_z = _compute_local_extents(anchor, local_placed)
-
-        # Translate x/z into absolute coordinates of the original truck.
         _translate_placements(local_placed, region.x, region.z)
 
         placed.extend(local_placed)
-
-        # ---------- Create child regions ----------
 
         # 1) Above supported rectangle
         remaining_height_above = region.height - used_h
@@ -220,7 +338,7 @@ def layer_pack(
                 )
             )
 
-        # 2) Right floor remainder of the used envelope
+        # 2) Right floor remainder
         remaining_right_width = region.width - used_x
         if remaining_right_width > _EPS:
             regions.append(
@@ -234,7 +352,7 @@ def layer_pack(
                 )
             )
 
-        # 3) Back floor remainder of the used envelope
+        # 3) Back floor remainder
         remaining_back_depth = region.depth - used_z
         if remaining_back_depth > _EPS and used_x > _EPS:
             regions.append(
