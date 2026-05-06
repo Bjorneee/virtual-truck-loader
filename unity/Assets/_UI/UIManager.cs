@@ -5,6 +5,7 @@ using UnityEngine.UIElements;
 using System.IO;
 using UnityEngine.Networking;
 using Debug = UnityEngine.Debug;
+using System.Runtime.InteropServices;
 
 public class UIManager : MonoBehaviour
 {
@@ -297,42 +298,65 @@ public class UIManager : MonoBehaviour
 
     private void SpawnVisualBox(CargoItem item)
     {
-        // 1. Calculate a unique spawn position for every box
-        // This spreads them out 1.5 meters apart along the X axis
-        float spacing = 1.5f;
-        float startOffset = -5f; // Start on the left side of the truck
-        float xPos = startOffset + (_visualBoxes.Count * spacing);
+        // 1. SMART RANDOM SPAWN
+        // Keep them strictly inside the truck bounds
+        float halfX = Mathf.Max(0, (TruckX / 2f) - (item.Length / 2f));
+        float halfZ = Mathf.Max(0, (TruckZ / 2f) - (item.Width / 2f));
 
-        Vector3 spawnPos = new Vector3(xPos, item.Height / 2f, 0);
+        float randX = Random.Range(-halfX, halfX);
+        float randZ = Random.Range(-halfZ, halfZ);
 
+        // Spawn slightly higher based on box count so they don't perfectly overlap
+        float spawnY = (item.Height / 2f) + (_visualBoxes.Count * 0.05f);
+
+        Vector3 spawnPos = new Vector3(randX, spawnY, randZ);
+
+        // If loading from a save file, use the saved position instead!
+        if (item.Position != Vector3.zero)
+        {
+            spawnPos = item.Position;
+        }
+
+        // 2. CREATE THE BOX
         GameObject newBox = Instantiate(boxPrefab, spawnPos, Quaternion.identity);
         newBox.transform.localScale = new Vector3(item.Length, item.Height, item.Width);
-        newBox.transform.position = item.Position;
-        newBox.GetComponent<Renderer>().material.color = item.DisplayColor;
 
+        // Apply saved rotation if loading, otherwise default
+        if (item.Rotation != Quaternion.identity && item.Rotation.eulerAngles != Vector3.zero)
+        {
+            newBox.transform.rotation = item.Rotation;
+        }
+
+        SetBoxColor(newBox, item.DisplayColor);
+
+        // Remove the old IsometricObjectDrag script if present
+        var oldDragScript = newBox.GetComponent<IsometricObjectDrag>();
+        if (oldDragScript != null) Destroy(oldDragScript);
+
+        // 3. SET TO BRICK MODE
         Rigidbody rb = newBox.GetComponent<Rigidbody>();
         if (rb != null)
         {
-            Destroy(rb);
+            rb.isKinematic = true;
+            rb.useGravity = false;
         }
 
         _visualBoxes.Add(newBox);
         if (!string.IsNullOrEmpty(item.Id)) _itemObjects[item.Id] = newBox;
-
-        Debug.Log($"Spawned {item.Name} at unique position: {spawnPos}");
     }
 
     private void OnSaveClicked()
     {
+        // 1. Sync Box Positions
         foreach (CargoItem item in _inventory)
         {
             if (_itemObjects.TryGetValue(item.Id, out GameObject box) && box != null)
             {
                 item.Position = box.transform.position;
-                Debug.Log($"{item.Name} saved at position {item.Position}");
             }
         }
 
+        // 2. Prepare Data
         InventoryData data = new InventoryData();
         data.items = _inventory;
         data.TruckLength = _truckL.value;
@@ -342,14 +366,29 @@ public class UIManager : MonoBehaviour
         data.MaxCalculationTime = _inputTimeLimit != null ? _inputTimeLimit.value : 10;
 
         string json = JsonUtility.ToJson(data, true);
-        string path = Path.Combine(Application.persistentDataPath, "loadout.json");
-        File.WriteAllText(path, json);
 
-        Debug.Log($"<color=cyan>SAVED JSON to:</color> {path}");
+        // 3. Open Windows Save Window
+        OpenFileName ofn = new OpenFileName();
+        ofn.structSize = Marshal.SizeOf(ofn);
+        ofn.filter = "JSON Files\0*.json\0All Files\0*.*\0";
+        ofn.file = new string(new char[256]);
+        ofn.maxFile = ofn.file.Length;
+        ofn.fileTitle = new string(new char[64]);
+        ofn.maxFileTitle = ofn.fileTitle.Length;
+        ofn.initialDir = UnityEngine.Application.dataPath;
+        ofn.title = "Save Loadout";
+        ofn.defExt = "json";
+        ofn.flags = 0x00000002 | 0x00000004; // OFN_OVERWRITEPROMPT | OFN_HIDEREADONLY
+
+        if (GetSaveFileName(ofn))
+        {
+            File.WriteAllText(ofn.file, json);
+            Debug.Log($"<color=cyan>SAVED JSON to:</color> {ofn.file}");
+        }
     }
 
-//Currently Obsolete/ used for debugging with file read/write instead of backend calls. Can be re-purposed for "Export JSON" button if desired.
-   
+    //Currently Obsolete/ used for debugging with file read/write instead of backend calls. Can be re-purposed for "Export JSON" button if desired.
+
     // private void WritePackRequestJSON()
     // {
     //     PackRequestData request = new PackRequestData();
@@ -558,34 +597,42 @@ public class UIManager : MonoBehaviour
 
     private void OnLoadClicked()
     {
-        string path = Path.Combine(Application.persistentDataPath, "loadout.json");
+        // 1. Open Windows Load Window
+        OpenFileName ofn = new OpenFileName();
+        ofn.structSize = Marshal.SizeOf(ofn);
+        ofn.filter = "JSON Files\0*.json\0All Files\0*.*\0";
+        ofn.file = new string(new char[256]);
+        ofn.maxFile = ofn.file.Length;
+        ofn.fileTitle = new string(new char[64]);
+        ofn.maxFileTitle = ofn.fileTitle.Length;
+        ofn.initialDir = UnityEngine.Application.dataPath;
+        ofn.title = "Load Loadout";
+        ofn.defExt = "json";
+        ofn.flags = 0x00000008; // OFN_FILEMUSTEXIST
 
-        if (!File.Exists(path))
+        if (GetOpenFileName(ofn))
         {
-            Debug.LogError("No save file found!");
-            return;
+            string path = ofn.file;
+            string json = File.ReadAllText(path);
+
+            ClearAll();
+
+            InventoryData loadedData = JsonUtility.FromJson<InventoryData>(json);
+            _truckL.value = loadedData.TruckLength;
+            _truckW.value = loadedData.TruckWidth;
+            _truckH.value = loadedData.TruckHeight;
+
+            foreach (CargoItem item in loadedData.items)
+            {
+                _inventory.Add(item);
+                SpawnVisualBox(item);
+            }
+
+            _itemListView.RefreshItems();
+            UpdateMetrics();
+
+            Debug.Log($"<color=green>LOADED:</color> {loadedData.items.Count} items from {path}");
         }
-
-        string json = File.ReadAllText(path);
-
-        ClearAll();
-
-        InventoryData loadedData = JsonUtility.FromJson<InventoryData>(json);
-        _truckL.value = loadedData.TruckLength;
-        _truckW.value = loadedData.TruckWidth;
-        _truckH.value = loadedData.TruckHeight;
-
-        foreach (CargoItem item in loadedData.items)
-        {
-            _inventory.Add(item);
-            //SpawnVisualBox(item);
-
-            Debug.Log($"{item.Name} loaded at position {item.Position}");
-        }
-
-        _itemListView.RefreshItems();
-        Debug.Log($"<color=green>LOADED:</color> {loadedData.items.Count} items.");
-        UpdateMetrics();
     }
 
     private void UpdateTruckSize()
@@ -639,17 +686,34 @@ public class UIManager : MonoBehaviour
 
     private void OnAddMenuClicked()
     {
-        float rL = Mathf.Round(Random.Range(1f, 3f) * 10f) / 10f;
-        float rW = Mathf.Round(Random.Range(1f, 3f) * 10f) / 10f;
-        float rH = Mathf.Round(Random.Range(1f, 3f) * 10f) / 10f;
+        // 1. DYNAMIC SCALING
+        // Make the boxes between 10% and 30% of the current truck dimensions.
+        // We use Mathf.Max to ensure they never spawn smaller than 0.2 meters.
+        float minL = Mathf.Max(0.2f, TruckX * 0.1f);
+        float maxL = Mathf.Max(0.5f, TruckX * 0.3f);
 
-        CargoItem randomItem = new CargoItem($"AutoBox {_inventory.Count + 1}", rL, rW, rH, 10, true, "Standard");
+        float minW = Mathf.Max(0.2f, TruckZ * 0.1f);
+        float maxW = Mathf.Max(0.5f, TruckZ * 0.3f);
 
-        // Safety assign ID if constructor didn't
+        float minH = Mathf.Max(0.2f, TruckY * 0.1f);
+        float maxH = Mathf.Max(0.5f, TruckY * 0.3f);
+
+        float rL = Mathf.Round(Random.Range(minL, maxL) * 10f) / 10f;
+        float rW = Mathf.Round(Random.Range(minW, maxW) * 10f) / 10f;
+        float rH = Mathf.Round(Random.Range(minH, maxH) * 10f) / 10f;
+        float rWeight = Mathf.Round(Random.Range(5f, 25f) * 10f) / 10f;
+
+        // 2. RANDOM GROUPS (For a colorful demo)
+        string[] groups = { "Standard", "Fragile", "Heavy", "Electronics" };
+        string randomGroup = groups[Random.Range(0, groups.Length)];
+
+        // 3. CREATE THE ITEM
+        CargoItem randomItem = new CargoItem($"AutoBox {_inventory.Count + 1}", rL, rW, rH, rWeight, true, randomGroup);
+
         if (string.IsNullOrEmpty(randomItem.Id)) randomItem.Id = System.Guid.NewGuid().ToString();
 
         _inventory.Add(randomItem);
-        //SpawnVisualBox(randomItem);
+        SpawnVisualBox(randomItem);
         _itemListView.RefreshItems();
         UpdateMetrics();
     }
@@ -727,10 +791,7 @@ public class UIManager : MonoBehaviour
     {
         for (int i = 0; i < _visualBoxes.Count; i++)
         {
-            if (_visualBoxes[i] != null)
-            {
-                _visualBoxes[i].GetComponent<Renderer>().material.color = _inventory[i].DisplayColor;
-            }
+            SetBoxColor(_visualBoxes[i], _inventory[i].DisplayColor);
         }
 
         var enumerator = selectedItems.GetEnumerator();
@@ -748,7 +809,7 @@ public class UIManager : MonoBehaviour
         int selectedIndex = _inventory.IndexOf(selectedData);
         if (selectedIndex >= 0 && selectedIndex < _visualBoxes.Count)
         {
-            _visualBoxes[selectedIndex].GetComponent<Renderer>().material.color = Color.cyan;
+            SetBoxColor(_visualBoxes[selectedIndex], Color.cyan);
         }
 
         if (_inputItemName != null) _inputItemName.SetValueWithoutNotify(selectedData.Name);
@@ -825,7 +886,7 @@ public class UIManager : MonoBehaviour
         {
             GameObject boxToResize = _visualBoxes[index];
             boxToResize.transform.localScale = new Vector3(_currentlySelectedItem.Length, _currentlySelectedItem.Height, _currentlySelectedItem.Width);
-            boxToResize.GetComponent<Renderer>().material.color = _currentlySelectedItem.DisplayColor;
+            SetBoxColor(boxToResize, _currentlySelectedItem.DisplayColor);
         }
 
         _itemListView.RefreshItems();
@@ -839,11 +900,9 @@ public class UIManager : MonoBehaviour
         {
             CargoItem clickedItem = _inventory[index];
 
-            if (_currentlySelectedItem == clickedItem)
-            {
-                ClearSelectionFrom3D();
-            }
-            else
+            // FIX: If it is ALREADY selected, do nothing! Just let the user drag it.
+            // (They can deselect by clicking the empty background instead).
+            if (_currentlySelectedItem != clickedItem)
             {
                 _itemListView.SetSelectionWithoutNotify(new List<int> { index });
 
@@ -1029,7 +1088,7 @@ public class UIManager : MonoBehaviour
         int index = _inventory.IndexOf(_currentlySelectedItem);
         if (index >= 0 && index < _visualBoxes.Count)
         {
-            _visualBoxes[index].GetComponent<Renderer>().material.color = _currentlySelectedItem.DisplayColor;
+            SetBoxColor(_visualBoxes[index], _currentlySelectedItem.DisplayColor);
 
             // NEW: Turn it back into a brick when deselected
             Rigidbody rb = _visualBoxes[index].GetComponent<Rigidbody>();
@@ -1047,7 +1106,7 @@ public class UIManager : MonoBehaviour
             string group = _inputGroup != null ? _inputGroup.value : "Standard";
 
             _previewBox3D.transform.localScale = new Vector3(l, h, w);
-            _previewBox3D.GetComponent<Renderer>().material.color = CargoItem.GetColorForGroup(group);
+            SetBoxColor(_previewBox3D, CargoItem.GetColorForGroup(group));
             _previewBox3D.transform.position = previewSpawnPoint.position + new Vector3(0, h / 2f, 0);
         }
     }
@@ -1059,4 +1118,45 @@ public class UIManager : MonoBehaviour
             _previewBox3D.transform.Rotate(Vector3.up * 45f * Time.deltaTime, Space.World);
         }
     }
+    private void SetBoxColor(GameObject box, Color color)
+    {
+        if (box != null)
+        {
+            box.GetComponent<Renderer>().material.color = color;
+        }
+    }
+    // --- NATIVE WINDOWS FILE EXPLORER HOOKS ---
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Auto)]
+    public class OpenFileName
+    {
+        public int structSize = 0;
+        public System.IntPtr hwndOwner = System.IntPtr.Zero;
+        public System.IntPtr hInstance = System.IntPtr.Zero;
+        public string filter = null;
+        public string customFilter = null;
+        public int maxCustFilter = 0;
+        public int filterIndex = 0;
+        public string file = null;
+        public int maxFile = 0;
+        public string fileTitle = null;
+        public int maxFileTitle = 0;
+        public string initialDir = null;
+        public string title = null;
+        public int flags = 0;
+        public short fileOffset = 0;
+        public short fileExtension = 0;
+        public string defExt = null;
+        public System.IntPtr custData = System.IntPtr.Zero;
+        public System.IntPtr hook = System.IntPtr.Zero;
+        public string templateName = null;
+        public System.IntPtr reservedPtr = System.IntPtr.Zero;
+        public int reservedInt = 0;
+        public int flagsEx = 0;
+    }
+
+    [DllImport("Comdlg32.dll", SetLastError = true, ThrowOnUnmappableChar = true, CharSet = CharSet.Auto)]
+    public static extern bool GetOpenFileName([In, Out] OpenFileName ofn);
+
+    [DllImport("Comdlg32.dll", SetLastError = true, ThrowOnUnmappableChar = true, CharSet = CharSet.Auto)]
+    public static extern bool GetSaveFileName([In, Out] OpenFileName ofn);
 }
