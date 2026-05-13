@@ -1,19 +1,18 @@
 using UnityEngine;
+using UnityEngine;
 using UnityEngine.EventSystems;
 
 public class ObjectManipulator : MonoBehaviour
 {
     public LayerMask boxLayer;
     private GameObject _selectedObject;
-    private Rigidbody _selectedRb;
-    private Vector3 _offset;
-    private float _cameraDistance;
+    private Vector3 _grabPointOffset;
 
     void Update()
     {
         if (Camera.main == null || UIManager.Instance == null) return;
 
-        // 1. SELECTION
+        // 1. SELECTION (Left Click Down)
         if (Input.GetMouseButtonDown(0))
         {
             if (EventSystem.current != null && EventSystem.current.IsPointerOverGameObject()) return;
@@ -22,81 +21,98 @@ public class ObjectManipulator : MonoBehaviour
             if (Physics.Raycast(ray, out RaycastHit hit, 100f, boxLayer))
             {
                 _selectedObject = hit.transform.gameObject;
-                _selectedRb = _selectedObject.GetComponent<Rigidbody>();
 
-                // Track distance for smooth dragging
-                _cameraDistance = Vector3.Distance(Camera.main.transform.position, _selectedObject.transform.position);
-                _offset = _selectedObject.transform.position - GetMouseWorldPos();
+                // Calculate the offset so the box doesn't snap its center to the mouse
+                _grabPointOffset = _selectedObject.transform.position - hit.point;
 
                 UIManager.Instance.SetSelectionFrom3D(_selectedObject);
             }
             else
             {
                 _selectedObject = null;
-                _selectedRb = null;
                 UIManager.Instance.ClearSelectionFrom3D();
             }
         }
 
-        // 2. PHYSICS-BASED DRAGGING
-        if (_selectedObject != null && _selectedRb != null && Input.GetMouseButton(0))
+        // 2. PURE MATH DRAGGING
+        if (_selectedObject != null && Input.GetMouseButton(0))
         {
-            Vector3 targetPos = GetMouseWorldPos() + _offset;
+            Ray ray = Camera.main.ScreenPointToRay(Input.mousePosition);
+            Vector3 targetPos = _selectedObject.transform.position;
 
-            // FENCE MATH (Stay inside truck)
-            float halfTruckX = UIManager.Instance.TruckX / 2f;
-            float halfTruckZ = UIManager.Instance.TruckZ / 2f;
-            float halfBoxX = _selectedObject.transform.localScale.x / 2f;
-            float halfBoxZ = _selectedObject.transform.localScale.z / 2f;
-
-            targetPos.x = Mathf.Clamp(targetPos.x, -halfTruckX + halfBoxX, halfTruckX - halfBoxX);
-            targetPos.z = Mathf.Clamp(targetPos.z, -halfTruckZ + halfBoxZ, halfTruckZ - halfBoxZ);
-
-            // Force Y to stay at exactly half-height (keeps it on the floor)
-            targetPos.y = _selectedObject.transform.localScale.y / 2f;
-
-            // Prevent overlapping: do an overlap test at the desired target position.
-            // Build local half extents from the object's current scale.
-            Vector3 halfExtents = new Vector3(
-                _selectedObject.transform.localScale.x / 2f,
-                _selectedObject.transform.localScale.y / 2f,
-                _selectedObject.transform.localScale.z / 2f
-            );
-
-            // Slightly shrink extents to allow tiny tolerance
-            Vector3 testExtents = halfExtents - Vector3.one * 0.01f;
-            if (testExtents.x < 0.01f) testExtents.x = 0.01f;
-            if (testExtents.y < 0.01f) testExtents.y = 0.01f;
-            if (testExtents.z < 0.01f) testExtents.z = 0.01f;
-
-            // Use only boxLayer to detect other boxes
-            int layerMask = boxLayer;
-
-            Collider[] hits = Physics.OverlapBox(targetPos, testExtents, _selectedObject.transform.rotation, layerMask, QueryTriggerInteraction.Ignore);
-
-            bool blocked = false;
-            foreach (var col in hits)
+            // --- HOLD SHIFT TO MOVE UP AND DOWN ---
+            if (Input.GetKey(KeyCode.LeftShift))
             {
-                if (col != null && col.gameObject != _selectedObject)
+                // Create a vertical plane facing the camera
+                Plane vertPlane = new Plane(Camera.main.transform.forward, _selectedObject.transform.position);
+                if (vertPlane.Raycast(ray, out float distance))
                 {
-                    blocked = true;
-                    break;
+                    targetPos.y = ray.GetPoint(distance).y + _grabPointOffset.y;
+                }
+            }
+            // --- NORMAL MOVEMENT (SIDE TO SIDE) ---
+            else
+            {
+                // Create a horizontal plane on the floor
+                Plane horizPlane = new Plane(Vector3.up, _selectedObject.transform.position);
+                if (horizPlane.Raycast(ray, out float distance))
+                {
+                    Vector3 hitPoint = ray.GetPoint(distance);
+                    targetPos.x = hitPoint.x + _grabPointOffset.x;
+                    targetPos.z = hitPoint.z + _grabPointOffset.z;
                 }
             }
 
-            // If blocked, do not move into overlap. Otherwise move with physics to get collision responses.
-            if (!blocked)
+            // --- 3. THE INVISIBLE FENCE ---
+            // Get the actual world-space extents from the collider (accounts for rotation)
+            Collider boxCollider = _selectedObject.GetComponent<Collider>();
+            float boxHalfX, boxHalfY, boxHalfZ;
+
+            if (boxCollider != null)
             {
-                // Use MovePosition: This tells Unity "Move here, but stop if you hit something solid"
-                _selectedRb.MovePosition(targetPos);
+                boxHalfX = boxCollider.bounds.extents.x;
+                boxHalfY = boxCollider.bounds.extents.y;
+                boxHalfZ = boxCollider.bounds.extents.z;
+                Debug.Log($"Using collider bounds - halfX: {boxHalfX}, halfY: {boxHalfY}, halfZ: {boxHalfZ}");
+            }
+            else
+            {
+                // Fallback to local scale if no collider
+                boxHalfX = _selectedObject.transform.localScale.x / 2f;
+                boxHalfY = _selectedObject.transform.localScale.y / 2f;
+                boxHalfZ = _selectedObject.transform.localScale.z / 2f;
+                Debug.Log($"Using localScale - halfX: {boxHalfX}, halfY: {boxHalfY}, halfZ: {boxHalfZ}");
+            }
+
+            // Force the target position to stay strictly inside the truck dimensions
+            targetPos.x = Mathf.Clamp(targetPos.x, boxHalfX, UIManager.Instance.TruckL - boxHalfX);
+            targetPos.y = Mathf.Clamp(targetPos.y, boxHalfY, UIManager.Instance.TruckH - boxHalfY);
+            targetPos.z = Mathf.Clamp(targetPos.z, boxHalfZ, UIManager.Instance.TruckW - boxHalfZ);
+
+            // --- 4. ANTI-OVERLAP SHIELD ---
+            // Simply check if any other collider overlaps with our position
+            // Disable our collider temporarily to avoid detecting ourselves
+            Collider myCollider = _selectedObject.GetComponent<Collider>();
+            if (myCollider != null) myCollider.enabled = false;
+
+            // Use OverlapBox WITHOUT rotation - just check the axis-aligned box at target position
+            // This is more accurate because we're checking the actual world-space extents
+            Collider[] overlaps = Physics.OverlapBox(targetPos, new Vector3(boxHalfX * 0.99f, boxHalfY * 0.99f, boxHalfZ * 0.99f), Quaternion.identity, boxLayer);
+            bool isBlocked = overlaps.Length > 0;
+
+            if (isBlocked)
+            {
+                Debug.Log($"Blocked by {overlaps.Length} colliders at position {targetPos}");
+            }
+
+            // Turn our collider back on
+            if (myCollider != null) myCollider.enabled = true;
+
+            // Only move if the space is completely empty!
+            if (!isBlocked)
+            {
+                _selectedObject.transform.position = targetPos;
             }
         }
-    }
-
-    private Vector3 GetMouseWorldPos()
-    {
-        Vector3 mousePoint = Input.mousePosition;
-        mousePoint.z = _cameraDistance;
-        return Camera.main.ScreenToWorldPoint(mousePoint);
     }
 }
